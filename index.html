@@ -267,7 +267,7 @@
       <button id="syncCompanyRights" class="blue" disabled>修复经营权 / 收费</button>
       <button id="applyStockTables" disabled>应用股票两张表</button>
     </div>
-    <div id="stockStatus" class="status">每张地图固定 12 支股票；地图经营公司的经营者还保存在地图记录中，修改持股后会同步修复。</div>
+    <div id="stockStatus" class="status">每张地图固定 12 支公司资料；地图经营公司的经营者还保存在地图记录中，修改持股后会同步修复。不上市公司的可流通股和今日现量固定为 0。</div>
     <details open>
       <summary>股票市场信息</summary>
       <div class="table-wrap gap"><table class="wide-table"><thead><tr><th>#</th><th>类别</th><th>股票名称</th><th>经营者</th><th>总股本</th><th>可流通股</th><th>今日现量</th><th>基础价</th><th>昨日价</th><th>今日价</th><th>波动参数</th><th>累计盈余</th><th>状态值</th></tr></thead><tbody id="stockMarketRows"></tbody></table></div>
@@ -378,6 +378,16 @@
   const controlNames = { 0:"已退出", 1:"玩家", 2:"电脑", 5:"玩家托管", 6:"电脑托管" };
   const transportNames = ["步行","机车","汽车","工程车"];
   const mapNames = ["台湾","中国大陆","日本","美国","星际之旅","仙剑世界","恐龙纪元","南岛历险"];
+  const mapProfiles = [
+    { size:7956, nodes:103, housing:50, business:4, companies:3 },
+    { size:11208, nodes:144, housing:73, business:8, companies:4 },
+    { size:8256, nodes:110, housing:49, business:5, companies:6 },
+    { size:9056, nodes:118, housing:55, business:8, companies:6 },
+    { size:8604, nodes:135, housing:47, business:5, companies:3 },
+    { size:13584, nodes:135, housing:60, business:3, companies:12 },
+    { size:13572, nodes:141, housing:55, business:6, companies:3 },
+    { size:8004, nodes:101, housing:0, business:20, companies:7 }
+  ];
   const stockNamesByMap = [
     ["中国信托","台湾人寿","大宇百货","台积电","大宇资讯","台湾塑胶","裕隆汽车","远东纺织","统一超商","震旦行","莱尔富","联合报"],
     ["上海银行","中国人寿","王府井百货","中国石油","联想科技","顶新食品","东方实业","汇丰证券","大庆石油","长城电机","长江建设","大众软件"],
@@ -398,6 +408,7 @@
     [10000,5000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000],
     [10000,10000,3000,5000,5000,5000,5000,10000,10000,10000,10000,10000]
   ];
+  const unlistedStocksByMap = [[],[3],[],[],[],[],[],[]];
   const cards = [
     [0x01,"均富卡"],[0x02,"均贫卡"],[0x03,"购地卡"],[0x04,"换地卡"],[0x05,"换屋卡"],
     [0x06,"转向卡"],[0x07,"改建卡"],[0x08,"拍卖卡"],[0x09,"天使卡"],[0x0A,"恶魔卡"],
@@ -448,6 +459,7 @@
   function u32(offset) { return view.getUint32(offset, true); }
   function i32(offset) { return view.getInt32(offset, true); }
   function setI32(offset, value) { view.setInt32(offset, clamp(value, -2147483648, 2147483647), true); }
+  function setU32(offset, value) { view.setUint32(offset, clamp(value, 0, 4294967295), true); }
   function f32(offset) { return view.getFloat32(offset, true); }
   function setF32(offset, value) {
     const n = Number(value);
@@ -465,13 +477,16 @@
   function stockName(stock) { return stockNamesByMap[globalMapId()]?.[stock] || `股票 ${stock + 1}`; }
   function totalHeldShares(stock) { let total=0;for(let player=0;player<PLAYER_COUNT;player++)total+=Math.max(0,i32(playerStockOffset(player,stock)));return total; }
   function currentStockTotal(stock) { return totalHeldShares(stock)+u16(stockOffset(stock)+8); }
+  function isUnlistedStock(stock) { return unlistedStocksByMap[globalMapId()]?.includes(stock) || false; }
+  function captureStockShareTotals() {stockShareTotals=Array.from({length:STOCK_COUNT},(_,stock)=>Math.max(currentStockTotal(stock),stockCapsByMap[globalMapId()]?.[stock]||0));}
   function stockCap(stock) {
     if(Number.isFinite(stockShareTotals[stock]))return stockShareTotals[stock];
     const current=currentStockTotal(stock);if(current>0)return current;
     return stockCapsByMap[globalMapId()]?.[stock] ?? 0;
   }
   function isMapStock(stock) { return u16(stockOffset(stock) + 4) !== 0; }
-  function stockCategory(stock) { const company=u16(stockOffset(stock)+4);return company?`地图经营公司 #${company}`:"纯股市公司"; }
+  function stockCategory(stock) { const company=u16(stockOffset(stock)+4);return company?`地图经营公司 #${company}${isUnlistedStock(stock)?"（不上市）":""}`:"纯股市公司"; }
+  function setMarketAvailability(stock, available) {const offset=stockOffset(stock),next=isUnlistedStock(stock)?0:Math.min(65535,Math.max(0,available));setU16(offset+8,next);setU16(offset+10,Math.min(u16(offset+10),next));}
   function orderedStocks() { return Array.from({ length: STOCK_COUNT }, (_, stock) => stock).sort((a, b) => Number(isMapStock(b)) - Number(isMapStock(a)) || a - b); }
 
   function initControls() {
@@ -532,6 +547,11 @@
       businessBase + (businessCount + 1) * BUSINESS_STRIDE <= end && companyBase + (companyCount + 1) * COMPANY_STRIDE <= end;
     return valid ? { size, base, nodeCount, nodeBase, housingCount, housingBase, businessCount, businessBase, companyCount, companyBase } : null;
   }
+  function mapProfileMatches(meta, mapId) {
+    const profile = mapProfiles[mapId];
+    return !!profile && meta.size === profile.size && meta.nodeCount === profile.nodes && meta.housingCount === profile.housing &&
+      meta.businessCount === profile.business && meta.companyCount === profile.companies;
+  }
   async function loadFile(file, handle = null) {
     const buffer = await file.arrayBuffer();
     validate(buffer);
@@ -539,6 +559,8 @@
     const nextView = new DataView(nextBytes.buffer);
     const nextMapMeta = parseMapMeta(nextView);
     if(!nextMapMeta)throw new Error("地图结构检查失败，已拒绝载入以避免破坏存档。");
+    const nextMapId = nextView.getUint16(0x0A,true) * 4 + nextView.getUint16(0x08,true);
+    if(!mapProfileMatches(nextMapMeta,nextMapId))throw new Error(`地图编号与实际结构不一致：编号 ${nextMapId}（${mapNames[nextMapId] || "未知地图"}），数据为 ${nextMapMeta.size} bytes / ${nextMapMeta.nodeCount} 节点 / ${nextMapMeta.housingCount} 住宅 / ${nextMapMeta.businessCount} 商业 / ${nextMapMeta.companyCount} 公司。`);
     for(let company=1;company<=nextMapMeta.companyCount;company++){const stock=nextBytes[nextMapMeta.companyBase+company*COMPANY_STRIDE+0x19];if(stock>=STOCK_COUNT)throw new Error(`地图公司 ${company} 的股票索引异常：${stock}`);}
     bytes = nextBytes;
     view = nextView;
@@ -546,7 +568,7 @@
     fileName = file.name || "SAVE0.DAT";
     fileHandle = handle;
     dirty = false;
-    stockShareTotals = Array.from({length:STOCK_COUNT},(_,stock)=>currentStockTotal(stock));
+    captureStockShareTotals();
     $("mapNode").min="1";$("mapNode").max=String(mapMeta.nodeCount);
     clearDownload();
     setEnabled(true);
@@ -731,7 +753,8 @@
         const poff = playerStockOffset(player, stock);
         return `<td><input data-stock="${stock}" data-player="${player}" data-holding="amount" type="number" min="0" max="2147483647" value="${Math.max(0,i32(poff))}"></td><td><input data-stock="${stock}" data-player="${player}" data-holding="cost" type="number" min="0" max="999999" step="0.01" value="${Math.max(0,f32(poff+4)).toFixed(2)}"></td>`;
       }).join("");
-      market.push(`<tr><td>${stock + 1}</td><td class="category">${stockCategory(stock)}</td><td>${stockName(stock)}</td><td>${stockManager(stock)}</td><td>${stockCap(stock)}</td><td><input data-stock="${stock}" data-market="available" type="number" min="0" max="65535" value="${u16(offset+8)}"></td><td><input data-stock="${stock}" data-market="volume" type="number" min="0" max="65535" value="${u16(offset+10)}"></td><td><input data-stock="${stock}" data-market="basePrice" type="number" step="0.01" value="${f32(offset+12).toFixed(2)}"></td><td><input data-stock="${stock}" data-market="yesterday" type="number" step="0.01" value="${f32(offset+16).toFixed(2)}"></td><td><input data-stock="${stock}" data-market="today" type="number" step="0.01" value="${f32(offset+20).toFixed(2)}"></td><td><input data-stock="${stock}" data-market="volatility" type="number" step="0.01" value="${f32(offset+24).toFixed(2)}"></td><td><input data-stock="${stock}" data-market="profit" type="number" step="0.01" value="${f32(offset+28).toFixed(2)}"></td><td><input data-stock="${stock}" data-market="state" type="number" min="0" max="4294967295" value="${u32(offset+32)}"></td></tr>`);
+      const marketLocked=isUnlistedStock(stock)?" disabled":"";
+      market.push(`<tr><td>${stock + 1}</td><td class="category">${stockCategory(stock)}</td><td>${stockName(stock)}</td><td>${stockManager(stock)}</td><td>${stockCap(stock)}</td><td><input data-stock="${stock}" data-market="available" type="number" min="0" max="65535" value="${u16(offset+8)}"${marketLocked}></td><td><input data-stock="${stock}" data-market="volume" type="number" min="0" max="65535" value="${u16(offset+10)}"${marketLocked}></td><td><input data-stock="${stock}" data-market="basePrice" type="number" step="0.01" value="${f32(offset+12).toFixed(2)}"></td><td><input data-stock="${stock}" data-market="yesterday" type="number" step="0.01" value="${f32(offset+16).toFixed(2)}"></td><td><input data-stock="${stock}" data-market="today" type="number" step="0.01" value="${f32(offset+20).toFixed(2)}"></td><td><input data-stock="${stock}" data-market="volatility" type="number" step="0.01" value="${f32(offset+24).toFixed(2)}"></td><td><input data-stock="${stock}" data-market="profit" type="number" step="0.01" value="${f32(offset+28).toFixed(2)}"></td><td><input data-stock="${stock}" data-market="state" type="number" min="0" max="4294967295" value="${u32(offset+32)}"></td></tr>`);
       holdings.push(`<tr><td>${stock + 1}</td><td class="category">${stockCategory(stock)}</td><td>${stockName(stock)}</td>${playerCells}</tr>`);
     }
     $("stockMarketRows").innerHTML = market.join("");
@@ -761,7 +784,7 @@
     const housing = [];
     for (let i = 1; i <= mapMeta.housingCount; i++) {
       const offset = mapMeta.housingBase + i * HOUSING_STRIDE;
-      housing.push(`<tr><td>${i}</td><td>${decodeMapName(offset+4) || `住宅地 ${i}`}</td><td>${u16(offset)}</td><td>${u16(offset+2)}</td><td>${ownerSelectHtml(u8(offset+0x19),`data-land-kind="housing" data-land="${i}" data-land-field="owner"`)}</td><td><input data-land-kind="housing" data-land="${i}" data-land-field="level" type="number" min="0" max="5" value="${u8(offset+0x1A)}"></td><td><select data-land-kind="housing" data-land="${i}" data-land-field="type"><option value="0"${u8(offset+0x18)===0?" selected":""}>住宅</option><option value="1"${u8(offset+0x18)!==0?" selected":""}>连锁店</option></select></td><td><input data-land-kind="housing" data-land="${i}" data-land-field="state" type="number" min="0" max="255" value="${u8(offset+0x17)}"></td><td><input data-land-kind="housing" data-land="${i}" data-land-field="landPrice" type="number" min="0" max="65535" value="${u16(offset+0x1C)}"></td><td><input data-land-kind="housing" data-land="${i}" data-land-field="housePrice" type="number" min="0" max="65535" value="${u16(offset+0x1E)}"></td></tr>`);
+      housing.push(`<tr><td>${i}</td><td>${decodeMapName(offset+4) || `住宅地 ${i}`}</td><td>${u16(offset)}</td><td>${u16(offset+2)}</td><td>${ownerSelectHtml(u8(offset+0x19),`data-land-kind="housing" data-land="${i}" data-land-field="owner"`)}</td><td><input data-land-kind="housing" data-land="${i}" data-land-field="level" type="number" min="0" max="5" value="${u8(offset+0x1A)}"></td><td><select data-land-kind="housing" data-land="${i}" data-land-field="type"><option value="0"${u8(offset+0x18)===0?" selected":""}>住宅</option><option value="1"${u8(offset+0x18)!==0?" selected":""}>连锁店</option></select></td><td><input data-land-kind="housing" data-land="${i}" data-land-field="state" type="number" min="0" max="255" value="${u8(offset+0x17)}"></td><td><input data-land-kind="housing" data-land="${i}" data-land-field="landPrice" type="number" min="0" max="65535" value="${u16(offset+0x1E)}"></td><td><input data-land-kind="housing" data-land="${i}" data-land-field="housePrice" type="number" min="0" max="65535" value="${u16(offset+0x1C)}"></td></tr>`);
     }
     const business = [];
     for (let i = 1; i <= mapMeta.businessCount; i++) {
@@ -786,7 +809,7 @@
   }
   function renderStructure() {
     if (!mapMeta) { $("structureStatus").innerHTML = `<span class="bad">地图结构未通过检查。</span>`; return; }
-    $("structureStatus").textContent = `${gameEdition()}；玩家 ${u32(0x0C)} 人；${mapNames[globalMapId()] || "地图"}；地图数据 ${mapMeta.size} bytes；节点 ${mapMeta.nodeCount}；住宅地 ${mapMeta.housingCount}；商业地 ${mapMeta.businessCount}；地图公司 ${mapMeta.companyCount}；股票 12 支。`;
+    $("structureStatus").textContent = `${gameEdition()}；玩家 ${u32(0x0C)} 人；${mapNames[globalMapId()] || "地图"}；官方地图结构匹配；地图数据 ${mapMeta.size} bytes；节点 ${mapMeta.nodeCount}；住宅地 ${mapMeta.housingCount}；商业地 ${mapMeta.businessCount}；地图公司 ${mapMeta.companyCount}；股票 12 支。`;
   }
   function renderAll() { if (!bytes) return; renderPlayers(); renderCards(); renderStocks(); renderLand(); renderStructure(); }
 
@@ -982,7 +1005,7 @@
     let returned=0;
     for(let stock=0;stock<STOCK_COUNT;stock++){
       const offset=playerStockOffset(player,stock),old=Math.max(0,i32(offset)),cost=Math.max(0,f32(offset+4)),next=Math.floor(old*maximum/current),giveBack=old-next;
-      if(giveBack>0){setPlayerStock(player,stock,next,next?cost:0);setU16(stockOffset(stock)+8,Math.min(65535,Math.max(0,stockCap(stock)-totalHeldShares(stock))));returned+=giveBack;}
+      if(giveBack>0){setPlayerStock(player,stock,next,next?cost:0);setMarketAvailability(stock,stockCap(stock)-totalHeldShares(stock));returned+=giveBack;}
     }
     return returned;
   }
@@ -1010,8 +1033,8 @@
     for(const group of groups){const result=allocateStockTier(group,remaining);remaining=Math.max(0,remaining-result.used);capacity+=result.capacity;}
     for(const item of candidates){
       setPlayerStock(player,item.stock,item.shares,item.shares?item.price:0);
-      const market=stockOffset(item.stock),available=Math.max(0,stockCap(item.stock)-totalHeldShares(item.stock));
-      setU16(market+8,Math.min(65535,available));setU16(market+10,Math.min(u16(market+10),u16(market+8)));
+      const available=Math.max(0,stockCap(item.stock)-totalHeldShares(item.stock));
+      setMarketAvailability(item.stock,available);
     }
     const value=playerStockValue(player),held=candidates.filter(item=>item.shares>0).length;
     return {value,held,capacity,shortage:Math.max(0,stockBudget-value)};
@@ -1059,10 +1082,10 @@
   function applyStockTables(announce = true) {
     for(let stock=0;stock<STOCK_COUNT;stock++){
       const offset=stockOffset(stock); const mv=field=>document.querySelector(`[data-stock="${stock}"][data-market="${field}"]`).value;
-      setU16(offset+8,mv("available"));setU16(offset+10,mv("volume"));setF32(offset+12,mv("basePrice"));setF32(offset+16,mv("yesterday"));setF32(offset+20,mv("today"));setF32(offset+24,mv("volatility"));setF32(offset+28,mv("profit"));view.setUint32(offset+32,clamp(mv("state"),0,4294967295),true);
+      setU16(offset+8,isUnlistedStock(stock)?0:mv("available"));setU16(offset+10,isUnlistedStock(stock)?0:mv("volume"));setF32(offset+12,mv("basePrice"));setF32(offset+16,mv("yesterday"));setF32(offset+20,mv("today"));setF32(offset+24,mv("volatility"));setF32(offset+28,mv("profit"));setU32(offset+32,mv("state"));
       for(let p=0;p<PLAYER_COUNT;p++){const amount=document.querySelector(`[data-stock="${stock}"][data-player="${p}"][data-holding="amount"]`).value;const cost=document.querySelector(`[data-stock="${stock}"][data-player="${p}"][data-holding="cost"]`).value;setPlayerStock(p,stock,amount,cost);}
     }
-    stockShareTotals=Array.from({length:STOCK_COUNT},(_,stock)=>currentStockTotal(stock));
+    captureStockShareTotals();
     if($("autoSyncCompanyRights").checked)syncMapCompanyOwners(false);
     if (announce) markChanged(`已应用 12 支股票的市场信息、玩家持股和平均成本${$("autoSyncCompanyRights").checked?"，并同步地图经营权":""}。`);
   }
@@ -1084,20 +1107,20 @@
   function setHumanStocks() {
     const human=currentPlayer(),desired=clamp($("stockShares").value,0,65535);
     let limited=0;
-    for(let s=0;s<STOCK_COUNT;s++){const cap=stockCap(s);let others=0;for(let p=0;p<PLAYER_COUNT;p++)if(p!==human)others+=Math.max(0,i32(playerStockOffset(p,s)));const shares=Math.min(desired,Math.max(0,cap-others));if(shares<desired)limited++;const price=Math.max(.01,f32(stockOffset(s)+20));setPlayerStock(human,s,shares,price);setU16(stockOffset(s)+8,Math.max(0,Math.min(65535,cap-others-shares)));}
+    for(let s=0;s<STOCK_COUNT;s++){const cap=stockCap(s);let others=0;for(let p=0;p<PLAYER_COUNT;p++)if(p!==human)others+=Math.max(0,i32(playerStockOffset(p,s)));const shares=Math.min(desired,Math.max(0,cap-others));if(shares<desired)limited++;const price=Math.max(.01,f32(stockOffset(s)+20));setPlayerStock(human,s,shares,price);setMarketAvailability(s,cap-others-shares);}
     syncMapCompanyOwners(false);markChanged(`玩家 ${human+1} 的每支股票已设置为指定数量并重算可流通股；${limited} 支因电脑已有持股而按公司总股本截断。`);
   }
-  function clearComputerStocks() {const human=currentPlayer();for(let s=0;s<STOCK_COUNT;s++){for(let p=0;p<PLAYER_COUNT;p++)if(p!==human)setPlayerStock(p,s,0,0);setU16(stockOffset(s)+8,Math.min(65535,Math.max(0,stockCap(s)-totalHeldShares(s))));setU16(stockOffset(s)+10,Math.min(u16(stockOffset(s)+10),u16(stockOffset(s)+8)));}syncMapCompanyOwners(false);markChanged("已清空其他三名玩家股票，把股份退回可流通量，并同步地图经营权。");}
+  function clearComputerStocks() {const human=currentPlayer();for(let s=0;s<STOCK_COUNT;s++){for(let p=0;p<PLAYER_COUNT;p++)if(p!==human)setPlayerStock(p,s,0,0);setMarketAvailability(s,stockCap(s)-totalHeldShares(s));}syncMapCompanyOwners(false);markChanged("已清空其他三名玩家股票，把上市股份退回可流通量，并同步地图经营权；不上市公司仍保持零现量。");}
   function setStockPrices() {const price=Number($("stockPrice").value);if(!Number.isFinite(price)||price<=0){$("stockStatus").textContent="请先输入统一股价；留空表示不修改。";return;}for(let s=0;s<STOCK_COUNT;s++){const o=stockOffset(s);setF32(o+16,price);setF32(o+20,price);}markChanged(`12 支股票的昨日价和今日价已设置为 ${price}。`);}
-  function batchStockMarket() {const available=clamp($("stockAvailable").value,0,65535),volume=clamp($("stockVolume").value,0,65535),profit=Math.max(0,Number($("stockProfit").value)||0);for(let stock=0;stock<STOCK_COUNT;stock++){const offset=stockOffset(stock);setU16(offset+8,available);setU16(offset+10,Math.min(volume,available));setF32(offset+28,profit);}stockShareTotals=Array.from({length:STOCK_COUNT},(_,stock)=>currentStockTotal(stock));markChanged(`已批量设置 12 支股票的可流通股 ${available}、今日现量 ${Math.min(volume,available)}、累计盈余 ${profit}；总股本已按新数值更新。`);}
+  function batchStockMarket() {const available=clamp($("stockAvailable").value,0,65535),volume=clamp($("stockVolume").value,0,65535),profit=Math.max(0,Number($("stockProfit").value)||0);for(let stock=0;stock<STOCK_COUNT;stock++){const offset=stockOffset(stock);if(isUnlistedStock(stock)){setU16(offset+8,0);setU16(offset+10,0);}else{setU16(offset+8,available);setU16(offset+10,Math.min(volume,available));}setF32(offset+28,profit);}captureStockShareTotals();markChanged(`已批量设置上市股票的可流通股 ${available}、今日现量 ${Math.min(volume,available)}、累计盈余 ${profit}；不上市公司保持零现量。`);}
   function repairStockAndCompanyRights() {
     let overallocated=0;
-    for(let stock=0;stock<STOCK_COUNT;stock++){const cap=stockCap(stock),held=totalHeldShares(stock),available=Math.max(0,cap-held);if(held>cap)overallocated++;setU16(stockOffset(stock)+8,Math.min(65535,available));setU16(stockOffset(stock)+10,Math.min(u16(stockOffset(stock)+10),u16(stockOffset(stock)+8)));}
+    for(let stock=0;stock<STOCK_COUNT;stock++){const cap=stockCap(stock),held=totalHeldShares(stock),available=Math.max(0,cap-held);if(held>cap)overallocated++;setMarketAvailability(stock,available);}
     const changed=syncMapCompanyOwners(false);markChanged(`已修复 12 支股票的可流通量、今日现量和地图经营权；经营者变化 ${changed} 家${overallocated?`，另有 ${overallocated} 支股票持股超过总股本，请在持股表调整`:""}。`);
   }
   function syncMapCompanyOwners(announce=true) {
     if(!mapMeta)return 0;let changed=0;
-    for(let i=1;i<=mapMeta.companyCount;i++){const offset=mapMeta.companyBase+i*COMPANY_STRIDE,stock=clamp(u8(offset+0x19),0,STOCK_COUNT-1),owner=stockManagerId(stock);if(u8(offset+0x18)!==owner){setU8(offset+0x18,owner);changed++;}}
+    for(let i=1;i<=mapMeta.companyCount;i++){const offset=mapMeta.companyBase+i*COMPANY_STRIDE,stock=clamp(u8(offset+0x19),0,STOCK_COUNT-1),owner=stockManagerId(stock);if(isUnlistedStock(stock))setU32(offset+0x30,Math.max(0,stockCap(stock)-totalHeldShares(stock)));if(u8(offset+0x18)!==owner){setU8(offset+0x18,owner);changed++;}}
     if(announce)markChanged(`已按股票持股唯一最多者同步 ${mapMeta.companyCount} 家地图公司经营权，其中 ${changed} 家发生变化。`);
     return changed;
   }
@@ -1107,14 +1130,16 @@
     for(let i=1;i<=mapMeta.housingCount;i++)callback("housing",i,mapMeta.housingBase+i*HOUSING_STRIDE);
     for(let i=1;i<=mapMeta.businessCount;i++)callback("business",i,mapMeta.businessBase+i*BUSINESS_STRIDE);
   }
-  function setAllLandOwner(owner) {forEachLand((kind,i,o)=>setU8(o+0x19,owner));markChanged(`全部住宅和商业土地已设为${owner?`玩家 ${owner}`:"无主"}。`);}
+  function repairHousingOwnershipState() {let repaired=0;if(!mapMeta)return repaired;for(let i=1;i<=mapMeta.housingCount;i++){const offset=mapMeta.housingBase+i*HOUSING_STRIDE;if(u8(offset+0x19)>0&&u32(offset+0x2C)===0){setU32(offset+0x2C,Math.max(1,u16(offset+0x1E)));repaired++;}}return repaired;}
+  function setAllLandOwner(owner) {forEachLand((kind,i,o)=>setU8(o+0x19,owner));const repaired=repairHousingOwnershipState();markChanged(`全部住宅和商业土地已设为${owner?`玩家 ${owner}`:"无主"}${repaired?`，并补齐 ${repaired} 块住宅的地图显示状态`:""}。`);}
   function clearComputerLand() {const human=currentPlayer()+1;let count=0;forEachLand((kind,i,o)=>{const owner=u8(o+0x19);if(owner&&owner!==human){setU8(o+0x19,0);setU8(o+0x1A,0);count++;}});markChanged(`已清空其他玩家的 ${count} 块土地和地产等级。`);}
-  function batchLandPrices() {const landPrice=clamp($("landPrice").value,0,65535),housePrice=clamp($("landHousePrice").value,0,65535);let count=0;forEachLand((kind,i,offset)=>{if(kind==="housing"){setU16(offset+0x1C,landPrice);setU16(offset+0x1E,housePrice);}else{setU16(offset+0x22,landPrice);setU16(offset+0x24,housePrice);}count++;});markChanged(`已批量设置 ${count} 块住宅地和商业地：地价 ${landPrice}，每级建屋价 ${housePrice}。`);}
+  function batchLandPrices() {const landPrice=clamp($("landPrice").value,0,65535),housePrice=clamp($("landHousePrice").value,0,65535);let count=0;forEachLand((kind,i,offset)=>{if(kind==="housing"){setU16(offset+0x1E,landPrice);setU16(offset+0x1C,housePrice);}else{setU16(offset+0x22,landPrice);setU16(offset+0x24,housePrice);}count++;});markChanged(`已批量设置 ${count} 块住宅地和商业地：地价 ${landPrice}，每级建屋价 ${housePrice}。`);}
   function updateLandLevels(mode) {const owner=clamp($("landPlayer").value,1,4);let count=0;forEachLand((kind,i,o)=>{if(u8(o+0x19)!==owner)return;const old=u8(o+0x1A);const next=mode==="up"?Math.min(5,old+1):mode==="down"?Math.max(0,old-1):5;if(next!==old){setU8(o+0x1A,next);count++;}});markChanged(`玩家 ${owner} 的 ${count} 块地产已${mode==="up"?"升 1 级":mode==="down"?"降 1 级":"升至 5 级"}。`);}
   function clearSelectedPlayerLand() {const owner=clamp($("landPlayer").value,1,4);let count=0;forEachLand((kind,i,o)=>{if(u8(o+0x19)===owner){setU8(o+0x19,0);setU8(o+0x1A,0);count++;}});markChanged(`已清空玩家 ${owner} 的 ${count} 块土地和地产。`);}
   function applyLandTable(announce = true) {
-    document.querySelectorAll("[data-land-kind][data-land-field]").forEach(input=>{const kind=input.dataset.landKind,index=Number(input.dataset.land),field=input.dataset.landField;const base=kind==="housing"?mapMeta.housingBase+index*HOUSING_STRIDE:mapMeta.businessBase+index*BUSINESS_STRIDE;const schema=kind==="housing"?{owner:[0x19,1],level:[0x1A,1],type:[0x18,1],state:[0x17,1],landPrice:[0x1C,2],housePrice:[0x1E,2]}:{owner:[0x19,1],level:[0x1A,1],type:[0x18,1],state:[0x1C,1],landPrice:[0x22,2],housePrice:[0x24,2]};const [rel,size]=schema[field];size===1?setU8(base+rel,input.value):setU16(base+rel,input.value);});
-    if (announce) markChanged("已应用住宅地和商业地明细表修改。");
+    document.querySelectorAll("[data-land-kind][data-land-field]").forEach(input=>{const kind=input.dataset.landKind,index=Number(input.dataset.land),field=input.dataset.landField;const base=kind==="housing"?mapMeta.housingBase+index*HOUSING_STRIDE:mapMeta.businessBase+index*BUSINESS_STRIDE;const schema=kind==="housing"?{owner:[0x19,1],level:[0x1A,1],type:[0x18,1],state:[0x17,1],landPrice:[0x1E,2],housePrice:[0x1C,2]}:{owner:[0x19,1],level:[0x1A,1],type:[0x18,1],state:[0x1C,1],landPrice:[0x22,2],housePrice:[0x24,2]};const [rel,size]=schema[field];size===1?setU8(base+rel,input.value):setU16(base+rel,input.value);});
+    const repaired=repairHousingOwnershipState();
+    if (announce) markChanged(`已应用住宅地和商业地明细表修改${repaired?`，并补齐 ${repaired} 块住宅的地图显示状态`:""}。`);
   }
   function applyCompanyTable(announce=true) {
     if(!mapMeta)return;
@@ -1144,7 +1169,7 @@
   function prepareForSave() {
     if(!bytes)return;
     if(bytes.byteLength<MIN_SAVE_SIZE)throw new Error("存档数据不完整，已阻止保存。");
-    if(mapMeta&&$("autoSyncCompanyRights").checked)syncMapCompanyOwners(false);
+    if(mapMeta){repairHousingOwnershipState();if($("autoSyncCompanyRights").checked)syncMapCompanyOwners(false);}
   }
   function makeDownload(auto=true) {if(!bytes)return;prepareForSave();clearDownload();downloadUrl=URL.createObjectURL(new Blob([bytes],{type:"application/octet-stream"}));const base=fileName.replace(/\.dat$/i,"");const out=`${base}.modified.DAT`;$("downloadArea").style.display="block";$("downloadArea").innerHTML=`<a id="downloadLink" href="${downloadUrl}" download="${out}">${out}</a>`;if(auto)setTimeout(()=>$("downloadLink").click(),0);}
   async function openNative(){if(!window.showOpenFilePicker){$("fileInput").click();return;}const[handle]=await window.showOpenFilePicker({multiple:false,types:[{description:"大富翁4存档",accept:{"application/octet-stream":[".dat",".DAT"]}}]});await loadFile(await handle.getFile(),handle);}
