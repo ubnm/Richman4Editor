@@ -1,0 +1,1180 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>大富翁4 存档修改器</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f2f4f7;
+      --panel: #fff;
+      --ink: #18202b;
+      --muted: #667085;
+      --line: #d7dde5;
+      --primary: #087f5b;
+      --warn: #9a5b00;
+      --danger: #ad3030;
+      --blue: #1769aa;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, "Segoe UI", sans-serif; }
+    main { width: min(1380px, calc(100% - 28px)); margin: 0 auto; padding: 22px 0 40px; }
+    header { display: flex; justify-content: space-between; align-items: end; gap: 16px; margin-bottom: 16px; }
+    h1 { margin: 0; font-size: 26px; letter-spacing: 0; }
+    h2 { margin: 0 0 12px; font-size: 17px; letter-spacing: 0; }
+    h3 { margin: 18px 0 10px; font-size: 14px; letter-spacing: 0; }
+    p { margin: 0; color: var(--muted); }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; }
+    .gap { margin-top: 16px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    .fields.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    label, .field { display: grid; gap: 5px; color: var(--muted); font-size: 12px; }
+    input, select, button, .file-button {
+      min-height: 36px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); font: inherit;
+    }
+    input, select { width: 100%; padding: 6px 8px; }
+    button, .file-button { appearance: none; display: inline-flex; align-items: center; justify-content: center; padding: 0 12px; cursor: pointer; }
+    button.primary, .file-button.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+    button.warn { color: var(--warn); border-color: #e4b760; background: #fff8e9; }
+    button.danger { color: var(--danger); border-color: #e6b1b1; background: #fff5f5; }
+    button.blue { color: var(--blue); border-color: #a9cae5; background: #f4f9fd; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .status { min-height: 23px; margin-top: 12px; color: var(--muted); }
+    .ok { color: var(--primary); }
+    .bad { color: var(--danger); }
+    .note { margin-top: 10px; padding: 9px 10px; border-left: 3px solid #84b6d9; background: #f5f9fc; color: var(--muted); }
+    .table-wrap { width: 100%; overflow: auto; border: 1px solid var(--line); border-radius: 6px; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .wide-table { min-width: 1180px; table-layout: auto; }
+    th, td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: left; overflow-wrap: anywhere; white-space: nowrap; }
+    th { color: var(--muted); font-size: 12px; background: #fafbfc; position: sticky; top: 0; z-index: 1; }
+    tbody tr:last-child td { border-bottom: 0; }
+    td input, td select { min-width: 74px; min-height: 31px; padding: 4px 6px; }
+    td .name-input { min-width: 126px; }
+    .cards { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; }
+    .check { display: flex; align-items: center; gap: 6px; min-height: 34px; border: 1px solid var(--line); border-radius: 6px; padding: 5px 7px; color: var(--ink); font-size: 12px; }
+    .check input { width: 16px; min-height: 16px; margin: 0; accent-color: var(--primary); }
+    .check-field { display: flex; align-items: center; gap: 7px; min-height: 36px; color: var(--ink); }
+    .check-field input { width: 16px; min-height: 16px; margin: 0; accent-color: var(--primary); }
+    .category { font-weight: 600; color: var(--blue); }
+    .items { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+    details { margin-top: 14px; }
+    summary { cursor: pointer; color: var(--ink); font-weight: 600; }
+    .download { display: none; margin-top: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 6px; }
+    .download a { color: var(--primary); font-weight: 600; }
+    .badge { display: inline-block; padding: 2px 6px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); font-size: 11px; }
+    @media (max-width: 980px) {
+      .grid { grid-template-columns: 1fr; }
+      .fields, .fields.six { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .items { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      header { align-items: start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div><h1>大富翁4 存档修改器</h1><p id="selectedFile">尚未选择存档</p></div>
+    <div class="toolbar">
+      <label class="file-button primary" for="fileInput">选择存档</label>
+      <input id="fileInput" type="file" accept=".dat,.DAT,application/octet-stream">
+      <button id="openNative">高级打开</button>
+      <button id="saveDirect" disabled>直接覆盖保存</button>
+      <button id="saveAs" disabled>保存 / 另存为</button>
+      <button id="download" disabled>下载修改版</button>
+    </div>
+  </header>
+
+  <section id="quickSection" class="panel">
+    <h2>快速修改</h2>
+    <div class="fields">
+      <label><span>当前编辑玩家</span><select id="playerSlot"></select></label>
+      <label><span>现金</span><input id="cash" type="number" min="0" max="2147483647" value="10000000"></label>
+      <label><span>存款</span><input id="bank" type="number" min="0" max="2147483647" value="10000000"></label>
+      <label><span>点券</span><input id="coupon" type="number" min="0" max="65535" value="60000"></label>
+    </div>
+    <div class="toolbar gap">
+      <button id="applyMoney" class="primary" disabled>应用当前玩家金钱</button>
+      <button id="applyCardsQuick" disabled>补满卡片</button>
+      <button id="applyItemsQuick" disabled>补满道具</button>
+      <button id="applyStatusCreditQuick" disabled>清状态 / 清贷款</button>
+      <button id="applyPreset" disabled>当前玩家完整强化</button>
+      <button id="applyAllSettings" class="blue" disabled>应用页面全部设置</button>
+      <button id="clearComputers" class="warn" disabled>清空其他玩家卡片道具点券</button>
+      <button id="bankruptComputers" class="danger" disabled>其他玩家退出 / 破产</button>
+      <button id="saveSettings">保存当前配置</button>
+      <button id="loadSettings">读取配置</button>
+    </div>
+    <div id="status" class="status">请选择 `SAVE0.DAT` 或其他 `SAVE*.DAT` 存档。</div>
+    <div id="downloadArea" class="download"></div>
+  </section>
+
+  <section id="overviewSection" class="panel gap">
+    <h2>玩家总览</h2>
+    <div class="table-wrap">
+      <table class="wide-table">
+        <thead><tr><th>玩家</th><th>控制</th><th>角色</th><th>现金</th><th>存款</th><th>贷款</th><th>点券</th><th>位置节点</th><th>交通</th><th>附身状态</th><th>卡片</th><th>道具总数</th><th>股票市值</th><th>土地</th></tr></thead>
+        <tbody id="playerRows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <div id="inventorySection" class="grid gap">
+    <section class="panel">
+      <h2>卡片栏</h2>
+      <div class="toolbar">
+        <button id="fillStrongCards" class="primary" disabled>强力组合填满 15 格</button>
+        <button id="applyCardCycle" disabled>按勾选循环填满</button>
+        <button id="selectAllCards">全选</button>
+        <button id="clearCardSelection">取消全选</button>
+        <button id="fillCardPool" disabled>补满全局卡片池</button>
+        <button id="clearCards" class="danger" disabled>清空当前玩家卡片</button>
+      </div>
+      <div id="cardChoices" class="cards gap"></div>
+      <div id="cardStatus" class="status">卡片栏最多 15 张；自选后会循环填满。</div>
+      <details><summary>当前玩家卡片槽明细</summary><div id="cardSlots" class="status"></div></details>
+    </section>
+
+    <section class="panel">
+      <h2>道具栏</h2>
+      <div class="fields">
+        <label><span>统一数量</span><input id="itemAmount" type="number" min="0" max="255" value="99"></label>
+      </div>
+      <div class="toolbar gap">
+        <button id="fillItems" class="primary" disabled>13 类道具全部设置</button>
+        <button id="applyItemDetails" disabled>应用道具明细</button>
+        <button id="clearItems" class="danger" disabled>清空当前玩家道具</button>
+      </div>
+      <div id="itemFields" class="items gap"></div>
+      <div id="itemStatus" class="status">每类道具使用 1 字节，范围 0-255；建议不超过 240。</div>
+    </section>
+  </div>
+
+  <section id="playerStateSection" class="panel gap">
+    <h2>人物状态、位置与交通</h2>
+    <div class="fields six">
+      <label><span>控制权</span><select id="control"><option value="0">已退出 / 破产</option><option value="1">玩家控制</option><option value="2">电脑控制</option><option value="5">玩家托管</option><option value="6">电脑托管</option></select></label>
+      <label><span>交通工具</span><select id="transport"><option value="0">步行</option><option value="1">机车</option><option value="2" selected>汽车</option><option value="3">工程车</option></select></label>
+      <label><span>工程车剩余天数</span><input id="constructionDays" type="number" min="0" max="63" value="7"></label>
+      <label><span>地图节点</span><input id="mapNode" type="number" min="1" max="999" value="1"></label>
+      <label><span>X 坐标</span><input id="posX" type="number" min="-32768" max="32767" value="0"></label>
+      <label><span>Y 坐标</span><input id="posY" type="number" min="-32768" max="32767" value="0"></label>
+    </div>
+    <div class="fields six gap">
+      <label><span>旅馆天数</span><input id="hotelDays" type="number" min="0" max="127" value="0"></label>
+      <label><span>消失天数</span><input id="vanishDays" type="number" min="0" max="127" value="0"></label>
+      <label><span>坐牢天数</span><input id="prisonDays" type="number" min="0" max="127" value="0"></label>
+      <label><span>住院天数</span><input id="hospitalDays" type="number" min="0" max="127" value="0"></label>
+      <label><span>冬眠天数</span><input id="sleepDays" type="number" min="0" max="127" value="0"></label>
+      <label><span>梦游天数</span><input id="dreamDays" type="number" min="0" max="127" value="0"></label>
+    </div>
+    <div class="fields six gap">
+      <label><span>停留天数</span><input id="stayDays" type="number" min="0" max="127" value="0"></label>
+      <label><span>乌龟天数</span><input id="slowDays" type="number" min="0" max="127" value="0"></label>
+      <label><span>银行拒绝天数</span><input id="bankRejectDays" type="number" min="0" max="127" value="0"></label>
+      <label><span>停止贷款天数</span><input id="noLoanDays" type="number" min="0" max="127" value="0"></label>
+      <label><span>保险剩余天数</span><input id="assuranceDays" type="number" min="0" max="127" value="0"></label>
+      <label><span>同盟剩余天数</span><input id="friendDays" type="number" min="0" max="127" value="0"></label>
+    </div>
+    <div class="fields six gap">
+      <label><span>同盟玩家</span><select id="friendPlayer"><option value="0">无</option><option value="1">玩家 1</option><option value="2">玩家 2</option><option value="3">玩家 3</option><option value="4">玩家 4</option></select></label>
+      <label><span>贷款</span><input id="loan" type="number" min="0" max="2147483647" value="0"></label>
+      <label><span>特殊融资</span><input id="specialFinance" type="number" min="0" max="2147483647" value="0"></label>
+      <label><span>附身神明</span><select id="godType"></select></label>
+      <label><span>神明剩余天数</span><input id="godDays" type="number" min="0" max="255" value="0"></label>
+      <label><span>状态预设</span><select id="possessionPreset"><option value="custom">使用上方自定义</option><option value="clear">清除附身与炸弹</option><option value="fortune">大财神 7 天</option><option value="blessing">大福神 7 天</option><option value="angel">天使 7 天</option><option value="land">土地公 7 天</option><option value="death">死神 13 天</option></select></label>
+    </div>
+    <div class="fields six gap">
+      <label><span>附身物品</span><select id="attachedItem"><option value="0">无</option><option value="18">定时炸弹</option></select></label>
+      <label><span>炸弹剩余步数</span><input id="bombSteps" type="number" min="0" max="255" value="0"></label>
+      <div class="field"><span>当前附身状态</span><input id="possessionSummary" value="神明：无；物品：无" disabled></div>
+    </div>
+    <div class="fields gap">
+      <label><span>住宅 / 商业地 / 地图公司入口</span><select id="propertyLocation"></select></label>
+    </div>
+    <div class="toolbar gap">
+      <button id="applyPlayerState" class="primary" disabled>应用人物状态</button>
+      <button id="applyPossession" class="blue" disabled>应用附身 / 炸弹状态</button>
+      <button id="setSafePosition" disabled>按节点安全定位</button>
+      <button id="locateProperty" disabled>定位到所选土地 / 设施</button>
+      <label class="check-field"><input id="autoSafePosition" type="checkbox" checked><span>应用状态时按节点自动校正坐标</span></label>
+      <button id="clearBadState" disabled>清除负面状态</button>
+      <button id="clearPossession" disabled>清除附身</button>
+      <button id="clearRoadEvents" class="warn" disabled>清空道路事件</button>
+      <button id="setCar" disabled>默认汽车</button>
+      <button id="setHumanControl" disabled>设为玩家控制</button>
+      <button id="setComputersControl" disabled>其他三人设为电脑</button>
+    </div>
+    <div id="playerStateStatus" class="status">明确执行定位时会同步道路节点和节点坐标，并解除旅馆、消失、监狱、医院状态；未改节点时会保留存档原坐标。</div>
+  </section>
+
+  <section id="priceSection" class="panel gap">
+    <h2>日期、回合与物价指数控制</h2>
+    <div class="fields six">
+      <label><span>年份</span><input id="year" type="number" min="1998" max="2099" value="2026"></label>
+      <label><span>月份</span><input id="month" type="number" min="1" max="12" value="1"></label>
+      <label><span>日期</span><input id="day" type="number" min="1" max="31" value="1"></label>
+      <label><span>当前回合玩家</span><select id="turnPlayer"><option value="0">玩家 1</option><option value="1">玩家 2</option><option value="2">玩家 3</option><option value="3">玩家 4</option></select></label>
+      <label><span>启动资金</span><input id="startingMoney" type="number" min="1" max="2147483647" value="200000"></label>
+      <label><span>游戏物价级别（整数）</span><input id="priceIndex" type="number" min="1" max="9999" step="1" value="1"></label>
+    </div>
+    <div class="toolbar gap">
+      <button id="applyGlobalState" class="primary" disabled>应用日期 / 回合 / 物价级别</button>
+      <button id="priceIndexOne" disabled>游戏物价级别恢复 1</button>
+    </div>
+    <h3>物价友好模式</h3>
+    <div class="fields">
+      <label><span>目标资产物价指数</span><input id="targetPriceIndex" type="number" min="0.1" max="999.9" step="0.1" value="1.3"></label>
+      <label><span>我方现金与存款合计上限</span><input id="friendlyCashCap" type="number" min="0" max="2147483647" value="220000"></label>
+      <label><span>股票资产占比上限（%）</span><input id="friendlyStockRatio" type="number" min="1" max="100" value="60"></label>
+      <div class="field"><span>4代指数规则</span><input value="资产指数可到 0.1；游戏级别只存整数" disabled></div>
+      <label class="check-field"><input id="overflowCashToStocks" type="checkbox" checked><span>超额现金转为股票（允许突破占比）</span></label>
+      <label class="check-field"><input id="prioritizeMapStocks" type="checkbox" checked><span>地图经营公司优先，再分配纯股市公司</span></label>
+    </div>
+    <div class="toolbar gap">
+      <button id="estimatePriceIndex" disabled>查看指数与资产</button>
+      <button id="capHumanLiquidAssets" disabled>限制我方现金 / 存款</button>
+      <button id="capHumanStockAssets" disabled>限制股票资产占比</button>
+      <button id="priceFriendlyMode" class="primary" disabled>物价友好模式</button>
+      <button id="targetPriceIndexMode" class="primary" disabled>目标物价指数模式</button>
+    </div>
+    <div id="globalStatus" class="status">资产指数按全体有效玩家平均总资产除以启动资金计算；友好模式只降低，目标模式可升可降。</div>
+  </section>
+
+  <section id="stockSection" class="panel gap">
+    <h2>股票管理</h2>
+    <div class="fields six">
+      <label><span>我方目标持股</span><input id="stockShares" type="number" min="0" max="65535" value="9999"></label>
+      <label><span>统一股价（留空不改）</span><input id="stockPrice" type="number" min="0.01" max="999999" step="0.01" placeholder="默认保留游戏股价"></label>
+      <label><span>统一可流通股</span><input id="stockAvailable" type="number" min="0" max="65535" value="0"></label>
+      <label><span>统一今日现量</span><input id="stockVolume" type="number" min="0" max="65535" value="0"></label>
+      <label><span>统一累计盈余</span><input id="stockProfit" type="number" min="0" max="999999999" step="0.01" value="0"></label>
+      <div class="field"><span>当前地图</span><input id="stockMapLabel" disabled></div>
+    </div>
+    <div class="toolbar gap">
+      <button id="buyAllStocks" class="primary" disabled>我方买光可流通股</button>
+      <button id="controlAllStocks" disabled>我方全部股票控股</button>
+      <button id="controlMapStocks" disabled>我方地图公司控股</button>
+      <button id="setHumanStocks" disabled>我方持股设为指定数量</button>
+      <button id="clearComputerStocks" class="warn" disabled>清空电脑股票</button>
+      <button id="setStockPrices" disabled>设置全部股价</button>
+      <button id="batchStockMarket" disabled>批量设置现量 / 盈余</button>
+      <button id="syncCompanyRights" class="blue" disabled>修复经营权 / 收费</button>
+      <button id="applyStockTables" disabled>应用股票两张表</button>
+    </div>
+    <div id="stockStatus" class="status">每张地图固定 12 支股票；地图经营公司的经营者还保存在地图记录中，修改持股后会同步修复。</div>
+    <details open>
+      <summary>股票市场信息</summary>
+      <div class="table-wrap gap"><table class="wide-table"><thead><tr><th>#</th><th>类别</th><th>股票名称</th><th>经营者</th><th>总股本</th><th>可流通股</th><th>今日现量</th><th>基础价</th><th>昨日价</th><th>今日价</th><th>波动参数</th><th>累计盈余</th><th>状态值</th></tr></thead><tbody id="stockMarketRows"></tbody></table></div>
+    </details>
+    <details>
+      <summary>玩家持股与平均成本</summary>
+      <div class="table-wrap gap"><table class="wide-table"><thead><tr><th>#</th><th>类别</th><th>股票名称</th><th>P1 股</th><th>P1 成本</th><th>P2 股</th><th>P2 成本</th><th>P3 股</th><th>P3 成本</th><th>P4 股</th><th>P4 成本</th></tr></thead><tbody id="stockHoldingRows"></tbody></table></div>
+    </details>
+  </section>
+
+  <section id="landSection" class="panel gap">
+    <h2>土地与地产管理</h2>
+    <div class="fields six">
+      <label><span>操作玩家</span><select id="landPlayer"><option value="1">玩家 1</option><option value="2">玩家 2</option><option value="3">玩家 3</option><option value="4">玩家 4</option></select></label>
+      <label><span>批量归属</span><select id="landOwnerTarget"><option value="0">无主土地</option><option value="1">玩家 1</option><option value="2">玩家 2</option><option value="3">玩家 3</option><option value="4">玩家 4</option></select></label>
+      <label><span>地价批量设为</span><input id="landPrice" type="number" min="0" max="65535" value="9999"></label>
+      <label><span>每级建屋价批量设为</span><input id="landHousePrice" type="number" min="0" max="65535" value="9999"></label>
+      <label><span>名称编码</span><select id="landEncoding"><option value="gbk">简体版 GBK</option><option value="big5">繁体版 Big5</option></select></label>
+      <div class="field"><span>地图记录</span><input id="landMapSummary" disabled></div>
+    </div>
+    <div class="toolbar gap">
+      <button id="ownAllLand" class="primary" disabled>全部土地归操作玩家</button>
+      <button id="setAllLandOwner" disabled>全部土地设为批量归属</button>
+      <button id="clearComputerLand" class="warn" disabled>清空其他玩家土地</button>
+      <button id="batchLandPrices" disabled>批量设置地价 / 建屋价</button>
+      <button id="upgradeLand" disabled>操作玩家地产升 1 级</button>
+      <button id="downgradeLand" disabled>操作玩家地产降 1 级</button>
+      <button id="maxLand" disabled>操作玩家地产升满</button>
+      <button id="clearPlayerLand" class="danger" disabled>清空操作玩家土地</button>
+      <button id="applyLandTable" disabled>应用土地表格</button>
+    </div>
+    <div id="landStatus" class="status">土地表从存档内置地图头动态解析，住宅地和商业地会一起处理；4代过路费由地价、每级价格、等级与物价指数动态计算。</div>
+    <details>
+      <summary>住宅土地明细</summary>
+      <div class="table-wrap gap"><table class="wide-table"><thead><tr><th>#</th><th>名称</th><th>X</th><th>Y</th><th>归属</th><th>等级</th><th>连锁店</th><th>价格状态</th><th>地价</th><th>建屋价</th></tr></thead><tbody id="housingLandRows"></tbody></table></div>
+    </details>
+    <details>
+      <summary>商业土地明细</summary>
+      <div class="table-wrap gap"><table class="wide-table"><thead><tr><th>#</th><th>名称</th><th>X</th><th>Y</th><th>归属</th><th>等级</th><th>建筑类型</th><th>价格状态</th><th>地价</th><th>建屋价</th></tr></thead><tbody id="businessLandRows"></tbody></table></div>
+    </details>
+    <h3>地图经营公司与收费</h3>
+    <div class="fields">
+      <label><span>统一公司收费</span><input id="companyToll" type="number" min="0" max="65535" value="9999"></label>
+      <label class="check-field"><input id="autoSyncCompanyRights" type="checkbox" checked><span>保存前按持股自动同步经营者</span></label>
+      <div class="field"><span>经营权规则</span><input value="对应股票持股唯一最多者" disabled></div>
+      <div class="field"><span>收费数据</span><input value="公司收费与股票累计盈余分别保存" disabled></div>
+    </div>
+    <div class="toolbar gap">
+      <button id="controlMapCompanies" class="primary" disabled>我方取得全部地图公司经营权</button>
+      <button id="batchCompanyToll" disabled>批量设置公司收费</button>
+      <button id="zeroCompanyToll" class="warn" disabled>公司收费清零</button>
+      <button id="applyCompanyTable" disabled>应用公司表格</button>
+    </div>
+    <div id="companyStatus" class="status">地图公司是独立记录；只改股票而不更新这里的经营者，可能出现控股却不收费。</div>
+    <details open>
+      <summary>地图经营公司明细</summary>
+      <div class="table-wrap gap"><table class="wide-table"><thead><tr><th>#</th><th>公司名称</th><th>对应股票</th><th>X</th><th>Y</th><th>经营者</th><th>公司类型</th><th>收费</th></tr></thead><tbody id="mapCompanyRows"></tbody></table></div>
+    </details>
+  </section>
+
+  <section id="structureSection" class="panel gap">
+    <h2>存档结构检查</h2>
+    <div id="structureStatus" class="status">载入后显示玩家数、地图数据大小、股票和土地记录数量。</div>
+    <div class="note">修改器不会改变文件长度。直接覆盖保存依赖浏览器权限；若浏览器拒绝，请使用“保存 / 另存为”或“下载修改版”。</div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const PLAYER_COUNT = 4;
+  const PLAYER_BASE = 0x10;
+  const PLAYER_STRIDE = 0x68;
+  const P = {
+    x: 0x08, y: 0x0A, node: 0x0C, previousNode: 0x0E, direction: 0x10, transport: 0x11, dice: 0x12, character: 0x13, control: 0x15,
+    cash: 0x1C, bank: 0x20, loan: 0x24, specialFinance: 0x28, coupon: 0x30,
+    hotel: 0x32, vanish: 0x33, prison: 0x34, hospital: 0x35, sleep: 0x36, dream: 0x37,
+    stay: 0x38, slow: 0x39, bankReject: 0x3B, noLoan: 0x3C, assurance: 0x3E,
+    godInfo: 0x3F, godAux: 0x40, godStat1: 0x44, godStat2: 0x46, godStat3: 0x48, friendDays: 0x4D, friendPlayer: 0x51
+  };
+  const CARD_BASE = 0x654;
+  const CARD_STRIDE = 15;
+  const CARD_SLOTS = 15;
+  const ITEM_BASE = 0x690;
+  const ITEM_STRIDE = 15;
+  const ITEM_COUNT = 13;
+  const CARD_POOL = 0x6CC;
+  const PLAYER_STOCK_BASE = 0x21F6;
+  const PLAYER_STOCK_STRIDE = 8;
+  const STOCK_COUNT = 12;
+  const STOCK_BASE = 0x2376;
+  const STOCK_STRIDE = 36;
+  const CURRENT_PLAYER = 0x2676;
+  const STARTING_MONEY = 0x268A;
+  const PRICE_INDEX = 0x268E;
+  const MAP_SIZE_OFFSET = 0x2747;
+  const MAP_BLOB_BASE = 0x274B;
+  const HOUSING_STRIDE = 0x34;
+  const BUSINESS_STRIDE = 0x38;
+  const COMPANY_STRIDE = 0x34;
+  const NODE_STRIDE = 40;
+  const EVENT_BASE = 0x204;
+  const EVENT_STRIDE = 24;
+  const EVENT_COUNT = 46;
+  const MIN_SAVE_SIZE = 0x274B;
+  const SETTINGS_KEY = "richman4-save-editor-settings-v2";
+
+  const characterNames = ["约翰乔","沙隆巴斯","忍太郎","钱夫人","阿土伯","莎拉公主","宫本宝藏","糖糖","乌咪","孙小美","小丹尼","金贝贝"];
+  const controlNames = { 0:"已退出", 1:"玩家", 2:"电脑", 5:"玩家托管", 6:"电脑托管" };
+  const transportNames = ["步行","机车","汽车","工程车"];
+  const mapNames = ["台湾","中国大陆","日本","美国","星际之旅","仙剑世界","恐龙纪元","南岛历险"];
+  const stockNamesByMap = [
+    ["中国信托","台湾人寿","大宇百货","台积电","大宇资讯","台湾塑胶","裕隆汽车","远东纺织","统一超商","震旦行","莱尔富","联合报"],
+    ["上海银行","中国人寿","王府井百货","中国石油","联想科技","顶新食品","东方实业","汇丰证券","大庆石油","长城电机","长江建设","大众软件"],
+    ["富士银行","三井生命","三越百货","日产建设","SEGA","丰田汽车","松下电机","日立机电","SONY","三菱工业","任天堂","德间书店"],
+    ["花旗银行","乔治亚人寿","环球百货","联合航空","福特汽车","IBM","德州仪器","摩托罗拉","迪士尼","可口可乐","麦当劳","百事可乐"],
+    ["行星银行","银河保险","宇宙百货","火星移民","陨石矿业","星球电视","金星科技","星海通讯","银河航运","月世界旅游","宇宙地产","太阳能电力"],
+    ["聚宝银楼","狂徒镖局","南北货场","少林派","武当派","蜀山派","嵩山派","恒山派","泰山派","衡山派","华山派","逍遥客栈"],
+    ["黄金银行","肥龙保险","飞龙百货","雷龙电子","侏罗纪影业","长毛象纺织","迅猛汽车","恐龙蛋食品","火山岩保险","三叶虫百货","始祖化石","翼龙航空"],
+    ["假期银行","假期百货","狂徒大饭店","豪华大饭店","第一大饭店","金金大饭店","世界大饭店","百事可乐","狄士尼","可口可乐","麦当劳","爱迪达"]
+  ];
+  const stockCapsByMap = [
+    [10000,5000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000],
+    [10000,5000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000],
+    [10000,5000,10000,5000,5000,5000,10000,10000,10000,10000,10000,10000],
+    [10000,5000,10000,5000,5000,5000,10000,10000,10000,10000,10000,10000],
+    [10000,5000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000],
+    [10000,5000,10000,3000,3000,5000,6000,4000,5000,4000,5000,4000],
+    [10000,5000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000],
+    [10000,10000,3000,5000,5000,5000,5000,10000,10000,10000,10000,10000]
+  ];
+  const cards = [
+    [0x01,"均富卡"],[0x02,"均贫卡"],[0x03,"购地卡"],[0x04,"换地卡"],[0x05,"换屋卡"],
+    [0x06,"转向卡"],[0x07,"改建卡"],[0x08,"拍卖卡"],[0x09,"天使卡"],[0x0A,"恶魔卡"],
+    [0x0B,"怪兽卡"],[0x0C,"拆除卡"],[0x0D,"抢夺卡"],[0x0E,"停留卡"],[0x0F,"冬眠卡"],
+    [0x10,"梦游卡"],[0x11,"陷害卡"],[0x12,"复仇卡"],[0x13,"嫁祸卡"],[0x14,"免费卡"],
+    [0x15,"免罪卡"],[0x16,"送神符"],[0x17,"请神符"],[0x18,"红卡"],[0x19,"黑卡"],
+    [0x1A,"查税卡"],[0x1B,"涨价卡"],[0x1C,"查封卡"],[0x1D,"同盟卡"],[0x1E,"乌龟卡"]
+  ];
+  const strongCards = [0x03,0x03,0x07,0x08,0x0B,0x0C,0x0D,0x14,0x15,0x17,0x18,0x18,0x19,0x19,0x1A];
+  const itemNames = ["机器娃娃","路障","地雷","定时炸弹","机车","汽车","飞弹","遥控骰子","机器工人","时光机","传送机","工程车","核子飞弹"];
+  const godTypes = [
+    [0,"无"],[1,"小财神"],[2,"大财神"],[3,"小福神"],[4,"大福神"],[5,"小穷神"],[6,"大穷神"],
+    [7,"小衰神"],[8,"大衰神"],[9,"天使"],[10,"恶魔"],[12,"土地公"],[15,"死神"]
+  ];
+  const godTypeNames = Object.fromEntries(godTypes);
+  const godStatModifiers = {
+    0:[0,0,0],1:[-100,100,0],2:[-200,150,0],3:[-100,0,100],4:[-200,0,150],5:[100,-60,0],6:[200,-100,0],
+    7:[100,0,-60],8:[200,0,-100],9:[-100,60,60],10:[100,-60,-60],12:[-500,0,0],15:[1000,-200,-200]
+  };
+  const eventTypeNames = { 0:"无",1:"小财神",2:"大财神",3:"小福神",4:"大福神",5:"小穷神",6:"大穷神",7:"小衰神",8:"大衰神",9:"天使",10:"恶魔",11:"恶犬",12:"土地公",13:"特殊人物 13",14:"特殊人物 14",15:"死神",16:"地雷",17:"路障",18:"定时炸弹" };
+
+  let bytes = null;
+  let view = null;
+  let fileName = "SAVE0.DAT";
+  let fileHandle = null;
+  let dirty = false;
+  let downloadUrl = null;
+  let mapMeta = null;
+  let stockShareTotals = [];
+  const $ = id => document.getElementById(id);
+  const main = document.querySelector("main");
+  for (const id of ["quickSection","overviewSection","priceSection","stockSection","landSection","playerStateSection","inventorySection","structureSection"]) main.appendChild($(id));
+
+  function clamp(value, min, max) {
+    const number = Number.isFinite(Number(value)) ? Math.trunc(Number(value)) : 0;
+    return Math.max(min, Math.min(max, number));
+  }
+  function clampNumber(value, min, max) {
+    const number = Number(value);
+    return Math.max(min, Math.min(max, Number.isFinite(number) ? number : min));
+  }
+  function u8(offset) { return bytes[offset]; }
+  function setU8(offset, value) { bytes[offset] = clamp(value, 0, 255); }
+  function u16(offset) { return view.getUint16(offset, true); }
+  function i16(offset) { return view.getInt16(offset, true); }
+  function setU16(offset, value) { view.setUint16(offset, clamp(value, 0, 65535), true); }
+  function setI16(offset, value) { view.setInt16(offset, clamp(value, -32768, 32767), true); }
+  function u32(offset) { return view.getUint32(offset, true); }
+  function i32(offset) { return view.getInt32(offset, true); }
+  function setI32(offset, value) { view.setInt32(offset, clamp(value, -2147483648, 2147483647), true); }
+  function f32(offset) { return view.getFloat32(offset, true); }
+  function setF32(offset, value) {
+    const n = Number(value);
+    view.setFloat32(offset, Number.isFinite(n) ? Math.max(-999999999, Math.min(999999999, n)) : 0, true);
+  }
+  function playerBase(player) { return PLAYER_BASE + player * PLAYER_STRIDE; }
+  function po(player, field) { return playerBase(player) + P[field]; }
+  function cardOffset(player) { return CARD_BASE + player * CARD_STRIDE; }
+  function itemOffset(player) { return ITEM_BASE + player * ITEM_STRIDE; }
+  function playerStockOffset(player, stock) { return PLAYER_STOCK_BASE + (player * STOCK_COUNT + stock) * PLAYER_STOCK_STRIDE; }
+  function stockOffset(stock) { return STOCK_BASE + stock * STOCK_STRIDE; }
+  function currentPlayer() { return clamp($("playerSlot").value, 0, PLAYER_COUNT - 1); }
+  function globalMapId() { return clamp(u16(0x0A) * 4 + u16(0x08), 0, 7); }
+  function gameEdition() { return u16(0x0A) === 1 ? "超时空之旅" : "原版"; }
+  function stockName(stock) { return stockNamesByMap[globalMapId()]?.[stock] || `股票 ${stock + 1}`; }
+  function totalHeldShares(stock) { let total=0;for(let player=0;player<PLAYER_COUNT;player++)total+=Math.max(0,i32(playerStockOffset(player,stock)));return total; }
+  function currentStockTotal(stock) { return totalHeldShares(stock)+u16(stockOffset(stock)+8); }
+  function stockCap(stock) {
+    if(Number.isFinite(stockShareTotals[stock]))return stockShareTotals[stock];
+    const current=currentStockTotal(stock);if(current>0)return current;
+    return stockCapsByMap[globalMapId()]?.[stock] ?? 0;
+  }
+  function isMapStock(stock) { return u16(stockOffset(stock) + 4) !== 0; }
+  function stockCategory(stock) { const company=u16(stockOffset(stock)+4);return company?`地图经营公司 #${company}`:"纯股市公司"; }
+  function orderedStocks() { return Array.from({ length: STOCK_COUNT }, (_, stock) => stock).sort((a, b) => Number(isMapStock(b)) - Number(isMapStock(a)) || a - b); }
+
+  function initControls() {
+    for (let player = 0; player < PLAYER_COUNT; player++) $("playerSlot").add(new Option(`玩家 ${player + 1}`, String(player)));
+    for (const [type, name] of godTypes) $("godType").add(new Option(type ? `${name}（类型 ${type.toString(16).toUpperCase().padStart(2,"0")}h）` : name, String(type)));
+    $("cardChoices").innerHTML = cards.map(([id, name]) => `<label class="check"><input type="checkbox" value="${id}"${strongCards.includes(id) ? " checked" : ""}><span>${name}</span></label>`).join("");
+    $("itemFields").innerHTML = itemNames.map((name, index) => `<label><span>${name}</span><input data-item="${index}" type="number" min="0" max="255" value="0"></label>`).join("");
+  }
+  function setEnabled(enabled) {
+    ["saveDirect","saveAs","download","applyMoney","applyCardsQuick","applyItemsQuick","applyStatusCreditQuick","applyPreset","applyAllSettings","clearComputers","bankruptComputers","fillStrongCards","applyCardCycle","fillCardPool","clearCards","fillItems","applyItemDetails","clearItems",
+      "applyPlayerState","applyPossession","setSafePosition","locateProperty","clearBadState","clearPossession","clearRoadEvents","setCar","setHumanControl","setComputersControl","applyGlobalState","priceIndexOne","estimatePriceIndex","capHumanLiquidAssets","capHumanStockAssets","priceFriendlyMode","targetPriceIndexMode",
+      "buyAllStocks","controlAllStocks","controlMapStocks","setHumanStocks","clearComputerStocks","setStockPrices","batchStockMarket","syncCompanyRights","applyStockTables",
+      "ownAllLand","setAllLandOwner","clearComputerLand","batchLandPrices","upgradeLand","downgradeLand","maxLand","clearPlayerLand","applyLandTable","controlMapCompanies","batchCompanyToll","zeroCompanyToll","applyCompanyTable"]
+      .forEach(id => { $(id).disabled = !enabled; });
+    $("saveDirect").disabled = !enabled || !fileHandle || typeof fileHandle.createWritable !== "function";
+    if (!mapMeta) ["setSafePosition","ownAllLand","setAllLandOwner","clearComputerLand","batchLandPrices","upgradeLand","downgradeLand","maxLand","clearPlayerLand","applyLandTable","controlMapCompanies","batchCompanyToll","zeroCompanyToll","applyCompanyTable","syncCompanyRights"].forEach(id => { $(id).disabled = true; });
+  }
+  function clearDownload() {
+    if (downloadUrl) URL.revokeObjectURL(downloadUrl);
+    downloadUrl = null;
+    $("downloadArea").style.display = "none";
+    $("downloadArea").innerHTML = "";
+  }
+  function markChanged(message) {
+    dirty = true;
+    clearDownload();
+    renderAll();
+    $("status").innerHTML = `<span class="ok">${message}</span> 尚未写回磁盘。`;
+  }
+  function validate(buffer) {
+    if (buffer.byteLength < MIN_SAVE_SIZE) throw new Error(`文件过小，不像大富翁4存档：${buffer.byteLength} bytes`);
+    const probe = new DataView(buffer);
+    const map = probe.getUint16(0x08, true), stage = probe.getUint16(0x0A, true);
+    if (map > 3 || stage > 1) throw new Error(`地图编号异常：地图 ${map}，关卡 ${stage}`);
+    const players = probe.getUint32(0x0C, true);
+    if (players < 1 || players > 4) throw new Error(`玩家数量字段异常：${players}`);
+    const day=probe.getUint8(4),month=probe.getUint8(5),year=probe.getUint16(6,true);
+    if(day<1||day>31||month<1||month>12||year<1998||year>2199)throw new Error(`日期字段异常：${year}-${month}-${day}`);
+    const mapSize = probe.getUint32(MAP_SIZE_OFFSET, true);
+    if (mapSize < 40 || MAP_BLOB_BASE + mapSize > buffer.byteLength) throw new Error(`地图数据长度异常：${mapSize}`);
+  }
+  function parseMapMeta(sourceView = view) {
+    const read32=offset=>sourceView.getUint32(offset,true);
+    const size = read32(MAP_SIZE_OFFSET);
+    const base = MAP_BLOB_BASE;
+    const nodeCount = read32(base);
+    const nodeBase = base + read32(base + 4);
+    const housingCount = read32(base + 8);
+    const housingBase = base + read32(base + 12);
+    const businessCount = read32(base + 16);
+    const businessBase = base + read32(base + 20);
+    const companyCount = read32(base + 24);
+    const companyBase = base + read32(base + 28);
+    const end = base + size;
+    const valid = nodeCount > 0 && nodeCount < 1000 && housingCount < 1000 && businessCount < 1000 && companyCount < 1000 &&
+      [nodeBase,housingBase,businessBase,companyBase].every(offset => offset >= base && offset < end) &&
+      nodeBase + (nodeCount + 1) * NODE_STRIDE <= end && housingBase + (housingCount + 1) * HOUSING_STRIDE <= end &&
+      businessBase + (businessCount + 1) * BUSINESS_STRIDE <= end && companyBase + (companyCount + 1) * COMPANY_STRIDE <= end;
+    return valid ? { size, base, nodeCount, nodeBase, housingCount, housingBase, businessCount, businessBase, companyCount, companyBase } : null;
+  }
+  async function loadFile(file, handle = null) {
+    const buffer = await file.arrayBuffer();
+    validate(buffer);
+    const nextBytes = new Uint8Array(buffer);
+    const nextView = new DataView(nextBytes.buffer);
+    const nextMapMeta = parseMapMeta(nextView);
+    if(!nextMapMeta)throw new Error("地图结构检查失败，已拒绝载入以避免破坏存档。");
+    for(let company=1;company<=nextMapMeta.companyCount;company++){const stock=nextBytes[nextMapMeta.companyBase+company*COMPANY_STRIDE+0x19];if(stock>=STOCK_COUNT)throw new Error(`地图公司 ${company} 的股票索引异常：${stock}`);}
+    bytes = nextBytes;
+    view = nextView;
+    mapMeta = nextMapMeta;
+    fileName = file.name || "SAVE0.DAT";
+    fileHandle = handle;
+    dirty = false;
+    stockShareTotals = Array.from({length:STOCK_COUNT},(_,stock)=>currentStockTotal(stock));
+    $("mapNode").min="1";$("mapNode").max=String(mapMeta.nodeCount);
+    clearDownload();
+    setEnabled(true);
+    loadAllInputs();
+    renderAll();
+    $("selectedFile").textContent = `${fileName} · ${bytes.byteLength} bytes`;
+    $("status").innerHTML = `<span class="ok">${fileName} 已载入。</span>`;
+  }
+
+  function decodeMapName(offset, length = 16) {
+    const encoding = $("landEncoding").value;
+    try { return new TextDecoder(encoding).decode(bytes.slice(offset, offset + length)).replace(/\0.*$/s, "").trim(); }
+    catch (_) { return ""; }
+  }
+  function readStatusDay(offset) { const value = u8(offset); return value === 255 ? 0 : value & 0x7F; }
+  function setStatusDay(offset, value) { setU8(offset, clamp(value, 0, 127)); }
+  function loadStatusDayInput(id, offset) {
+    const input = $(id), raw = u8(offset), display = raw === 255 ? 0 : raw & 0x7F;
+    input.value = display;
+    input.dataset.rawStatus = raw;
+    input.dataset.loadedStatus = display;
+  }
+  function writeStatusDayInput(id, offset) {
+    const input = $(id), display = clamp(input.value, 0, 127);
+    const unchanged = String(display) === input.dataset.loadedStatus;
+    setU8(offset, unchanged ? clamp(input.dataset.rawStatus, 0, 255) : display);
+  }
+  function trafficDisplay(value) { return value <= 2 ? value : 3; }
+  function constructionDays(value) { return value <= 2 ? 0 : (value === 3 ? 64 : Math.max(1, Math.floor((value - 3) / 4))); }
+  function encodedTraffic(kind, days) {
+    if (kind <= 2) return kind;
+    const d = clamp(days, 1, 64);
+    return d === 64 ? 3 : d * 4 + 3;
+  }
+  function eventOffset(index) { return EVENT_BASE + (index - 1) * EVENT_STRIDE; }
+  function eventTypeForIndex(index) { return index >= 1 && index <= EVENT_COUNT ? u8(eventOffset(index)) : 0; }
+  function eventDays(index) { return index >= 1 && index <= EVENT_COUNT ? u8(eventOffset(index) + 4) : 0; }
+  function eventSlotsForType(type) {const result=[];for(let slot=1;slot<=EVENT_COUNT;slot++)if(eventTypeForIndex(slot)===type)result.push(slot);return result;}
+  function eventReferencedByOtherPlayer(slot,field,player=-1) {for(let index=0;index<PLAYER_COUNT;index++)if(index!==player&&u8(po(index,field))===slot)return true;return false;}
+  function releaseEventSlot(slot) {if(slot<1||slot>EVENT_COUNT)return;const offset=eventOffset(slot);setU16(offset+2,0);setU8(offset+4,0);setU8(offset+5,0);}
+  function adjustGodStats(player,oldType,newType) {
+    const oldValues=godStatModifiers[oldType]||godStatModifiers[0],newValues=godStatModifiers[newType]||godStatModifiers[0],fields=["godStat1","godStat2","godStat3"];
+    for(let index=0;index<fields.length;index++)setI16(po(player,fields[index]),i16(po(player,fields[index]))-oldValues[index]+newValues[index]);
+  }
+  function clearPlayerGod(player) {
+    const slot=u8(po(player,"godInfo")),type=eventTypeForIndex(slot);setU8(po(player,"godInfo"),0);adjustGodStats(player,type,0);
+    if(!eventReferencedByOtherPlayer(slot,"godInfo",player))releaseEventSlot(slot);
+  }
+  function clearPlayerBomb(player) {
+    const slot=u8(po(player,"godAux"));setU8(po(player,"godAux"),0);
+    if(!eventReferencedByOtherPlayer(slot,"godAux",player))releaseEventSlot(slot);
+  }
+  function clearPossessionBytes(player) {clearPlayerGod(player);clearPlayerBomb(player);}
+  function attachGod(player,type,days) {
+    const oldSlot=u8(po(player,"godInfo")),oldType=eventTypeForIndex(oldSlot);
+    if(type===0){clearPlayerGod(player);return true;}
+    if(oldSlot&&oldType===type){const offset=eventOffset(oldSlot);setU16(offset+2,u16(po(player,"node")));setU8(offset+4,days);setU8(offset+5,player+1);return true;}
+    const slots=eventSlotsForType(type);if(!slots.length)return false;
+    clearPlayerGod(player);
+    const slot=slots.find(candidate=>!eventReferencedByOtherPlayer(candidate,"godInfo",player))||slots[0];
+    for(let other=0;other<PLAYER_COUNT;other++)if(other!==player&&u8(po(other,"godInfo"))===slot){adjustGodStats(other,eventTypeForIndex(slot),0);setU8(po(other,"godInfo"),0);}
+    releaseEventSlot(slot);setU8(po(player,"godInfo"),slot);adjustGodStats(player,0,type);
+    const offset=eventOffset(slot);setU16(offset+2,u16(po(player,"node")));setU8(offset+4,days);setU8(offset+5,player+1);return true;
+  }
+  function attachBomb(player,steps) {
+    const oldSlot=u8(po(player,"godAux"));
+    if(oldSlot&&eventTypeForIndex(oldSlot)===18){const offset=eventOffset(oldSlot);setU16(offset+2,u16(po(player,"node")));setU8(offset+4,steps);setU8(offset+5,player+1);return true;}
+    const slot=eventSlotsForType(18).find(candidate=>!eventReferencedByOtherPlayer(candidate,"godAux",player)&&u16(eventOffset(candidate)+2)===0&&u8(eventOffset(candidate)+5)===0);
+    if(!slot)return false;
+    clearPlayerBomb(player);setU8(po(player,"godAux"),slot);const offset=eventOffset(slot);setU16(offset+2,u16(po(player,"node")));setU8(offset+4,steps);setU8(offset+5,player+1);return true;
+  }
+  function applyPossessionInputs(player) {
+    const selectedGod=$("godType").value,selectedItem=$("attachedItem").value;
+    const godDays=selectedGod==="0"?0:clamp($("godDays").value,1,255),bombSteps=selectedItem==="0"?0:clamp($("bombSteps").value,1,255);
+    const godOk=selectedGod==="keep"?true:attachGod(player,clamp(selectedGod,0,15),godDays);
+    if(selectedGod==="keep"){const slot=u8(po(player,"godInfo"));if(slot)setU8(eventOffset(slot)+4,godDays);}
+    let bombOk=true;
+    if(selectedItem==="keep"){const slot=u8(po(player,"godAux"));if(slot)setU8(eventOffset(slot)+4,bombSteps);}
+    else if(clamp(selectedItem,0,18)===0)clearPlayerBomb(player);else bombOk=attachBomb(player,bombSteps);
+    return {godOk,bombOk};
+  }
+  function possessionDescription(player) {
+    const godSlot=u8(po(player,"godInfo")),godType=eventTypeForIndex(godSlot),itemSlot=u8(po(player,"godAux")),itemType=eventTypeForIndex(itemSlot);
+    const god=godSlot?`${eventTypeNames[godType]||`未知类型 ${godType}`}（${eventDays(godSlot)} 天）`:"无";
+    const item=itemSlot?`${eventTypeNames[itemType]||`未知类型 ${itemType}`}（${eventDays(itemSlot)} 步）`:"无";
+    return `神明：${god}；附身物品：${item}`;
+  }
+  function possessionOverview(player) {
+    const godSlot=u8(po(player,"godInfo")),godType=eventTypeForIndex(godSlot),itemSlot=u8(po(player,"godAux")),parts=[];
+    if(godSlot)parts.push(`${eventTypeNames[godType]||`类型 ${godType}`} ${eventDays(godSlot)}天`);if(itemSlot)parts.push(`炸弹 ${eventDays(itemSlot)}步`);return parts.join(" / ")||"无";
+  }
+  function loadPossessionInputs(player) {
+    const godSlot=u8(po(player,"godInfo")),godType=eventTypeForIndex(godSlot),itemSlot=u8(po(player,"godAux")),itemType=eventTypeForIndex(itemSlot);
+    $("godType").querySelector('option[value="keep"]')?.remove();
+    $("attachedItem").querySelector('option[value="keep"]')?.remove();
+    if(godSlot&&!godTypeNames[godType]){$("godType").add(new Option(`保留当前未知事件（类型 ${godType}）`,"keep"));$("godType").value="keep";}else $("godType").value=String(godType||0);
+    if(itemSlot&&itemType!==18){$("attachedItem").add(new Option(`保留当前未知物品（类型 ${itemType}）`,"keep"));$("attachedItem").value="keep";}else $("attachedItem").value=String(itemType===18?18:0);
+    $("godDays").value=eventDays(godSlot);$("bombSteps").value=eventDays(itemSlot);$("possessionPreset").value="custom";$("possessionSummary").value=possessionDescription(player);
+  }
+  function loadPlayerInputs() {
+    if (!bytes) return;
+    const player = currentPlayer();
+    $("cash").value = Math.max(0, i32(po(player, "cash")));
+    $("bank").value = Math.max(0, i32(po(player, "bank")));
+    $("coupon").value = u16(po(player, "coupon"));
+    $("loan").value = Math.max(0, i32(po(player, "loan")));
+    $("specialFinance").value = Math.max(0, i32(po(player, "specialFinance")));
+    $("control").value = String(u8(po(player, "control")));
+    const traffic = u8(po(player, "transport"));
+    $("transport").value = String(trafficDisplay(traffic));
+    $("constructionDays").value = constructionDays(traffic);
+    const loadedNode=u16(po(player,"node"));
+    $("mapNode").value = loadedNode;
+    $("mapNode").dataset.loadedNode = loadedNode;
+    $("posX").value = i16(po(player, "x"));
+    $("posY").value = i16(po(player, "y"));
+    const statusBindings = { hotelDays:"hotel",vanishDays:"vanish",prisonDays:"prison",hospitalDays:"hospital",sleepDays:"sleep",dreamDays:"dream",stayDays:"stay",slowDays:"slow",bankRejectDays:"bankReject",noLoanDays:"noLoan",assuranceDays:"assurance",friendDays:"friendDays" };
+    for (const [id, field] of Object.entries(statusBindings)) loadStatusDayInput(id, po(player, field));
+    $("friendPlayer").value = String(clamp(u8(po(player, "friendPlayer")), 0, 4));
+    loadPossessionInputs(player);
+    for (let item = 0; item < ITEM_COUNT; item++) document.querySelector(`[data-item="${item}"]`).value = bytes[itemOffset(player) + item];
+    $("landPlayer").value = String(player + 1);
+    $("landOwnerTarget").value = String(player + 1);
+  }
+  function loadGlobalInputs() {
+    $("day").value = u8(4);
+    $("month").value = u8(5);
+    $("year").value = u16(6);
+    $("turnPlayer").value = String(clamp(i32(CURRENT_PLAYER), 0, 3));
+    $("startingMoney").value = Math.max(1, i32(STARTING_MONEY));
+    $("priceIndex").value = Math.max(1, i32(PRICE_INDEX));
+    $("stockMapLabel").value = `${gameEdition()} · ${mapNames[globalMapId()] || "未知地图"}（地图编号 ${globalMapId()}）`;
+  }
+  function loadAllInputs() { loadPlayerInputs(); loadGlobalInputs(); }
+
+  function playerStockValue(player) {
+    let total = 0;
+    for (let stock = 0; stock < STOCK_COUNT; stock++) total = Math.trunc(total + Math.max(0, i32(playerStockOffset(player, stock))) * Math.max(0, f32(stockOffset(stock) + 20)));
+    return total;
+  }
+  function countPlayerLand(playerOwner) {
+    if (!mapMeta) return 0;
+    let count = 0;
+    for (let i = 1; i <= mapMeta.housingCount; i++) if (u8(mapMeta.housingBase + i * HOUSING_STRIDE + 0x19) === playerOwner) count++;
+    for (let i = 1; i <= mapMeta.businessCount; i++) if (u8(mapMeta.businessBase + i * BUSINESS_STRIDE + 0x19) === playerOwner) count++;
+    return count;
+  }
+  function renderPlayers() {
+    const rows = [];
+    for (let player = 0; player < PLAYER_COUNT; player++) {
+      const cardsUsed = Array.from(bytes.slice(cardOffset(player), cardOffset(player) + CARD_SLOTS)).filter(Boolean).length;
+      const items = Array.from(bytes.slice(itemOffset(player), itemOffset(player) + ITEM_COUNT)).reduce((sum, value) => sum + value, 0);
+      const traffic = trafficDisplay(u8(po(player, "transport")));
+      rows.push(`<tr><td>玩家 ${player + 1}</td><td>${controlNames[u8(po(player,"control"))] || `值 ${u8(po(player,"control"))}`}</td><td>${characterNames[u8(po(player,"character"))] || `角色 ${u8(po(player,"character"))}`}</td><td>${i32(po(player,"cash"))}</td><td>${i32(po(player,"bank"))}</td><td>${i32(po(player,"loan"))}</td><td>${u16(po(player,"coupon"))}</td><td>${u16(po(player,"node"))}</td><td>${transportNames[traffic]}</td><td>${possessionOverview(player)}</td><td>${cardsUsed}/15</td><td>${items}</td><td>${playerStockValue(player)}</td><td>${countPlayerLand(player + 1)}</td></tr>`);
+    }
+    $("playerRows").innerHTML = rows.join("");
+  }
+  function renderCards() {
+    const names = new Map(cards);
+    const player = currentPlayer();
+    $("cardSlots").textContent = Array.from(bytes.slice(cardOffset(player), cardOffset(player) + CARD_SLOTS)).map((id, index) => `${index + 1}. ${id ? names.get(id) || `未知卡 0x${id.toString(16)}` : "空"}`).join("　");
+  }
+  function stockManager(stock) {
+    const amounts = Array.from({ length: PLAYER_COUNT }, (_, p) => Math.max(0, i32(playerStockOffset(p, stock))));
+    const max = Math.max(...amounts);
+    if (max <= 0) return "暂无";
+    const winners = amounts.map((value, index) => value === max ? index + 1 : 0).filter(Boolean);
+    return winners.length === 1 ? `玩家 ${winners[0]}` : `并列 ${winners.join("/")}`;
+  }
+  function stockManagerId(stock) {
+    const amounts = Array.from({ length: PLAYER_COUNT }, (_, player) => Math.max(0, i32(playerStockOffset(player, stock))));
+    const max = Math.max(...amounts);
+    if (max <= 0 || amounts.filter(value => value === max).length !== 1) return 0;
+    return amounts.indexOf(max) + 1;
+  }
+  function renderStocks() {
+    const market = [];
+    const holdings = [];
+    for (const stock of orderedStocks()) {
+      const offset = stockOffset(stock);
+      const playerCells = Array.from({ length: PLAYER_COUNT }, (_, player) => {
+        const poff = playerStockOffset(player, stock);
+        return `<td><input data-stock="${stock}" data-player="${player}" data-holding="amount" type="number" min="0" max="2147483647" value="${Math.max(0,i32(poff))}"></td><td><input data-stock="${stock}" data-player="${player}" data-holding="cost" type="number" min="0" max="999999" step="0.01" value="${Math.max(0,f32(poff+4)).toFixed(2)}"></td>`;
+      }).join("");
+      market.push(`<tr><td>${stock + 1}</td><td class="category">${stockCategory(stock)}</td><td>${stockName(stock)}</td><td>${stockManager(stock)}</td><td>${stockCap(stock)}</td><td><input data-stock="${stock}" data-market="available" type="number" min="0" max="65535" value="${u16(offset+8)}"></td><td><input data-stock="${stock}" data-market="volume" type="number" min="0" max="65535" value="${u16(offset+10)}"></td><td><input data-stock="${stock}" data-market="basePrice" type="number" step="0.01" value="${f32(offset+12).toFixed(2)}"></td><td><input data-stock="${stock}" data-market="yesterday" type="number" step="0.01" value="${f32(offset+16).toFixed(2)}"></td><td><input data-stock="${stock}" data-market="today" type="number" step="0.01" value="${f32(offset+20).toFixed(2)}"></td><td><input data-stock="${stock}" data-market="volatility" type="number" step="0.01" value="${f32(offset+24).toFixed(2)}"></td><td><input data-stock="${stock}" data-market="profit" type="number" step="0.01" value="${f32(offset+28).toFixed(2)}"></td><td><input data-stock="${stock}" data-market="state" type="number" min="0" max="4294967295" value="${u32(offset+32)}"></td></tr>`);
+      holdings.push(`<tr><td>${stock + 1}</td><td class="category">${stockCategory(stock)}</td><td>${stockName(stock)}</td>${playerCells}</tr>`);
+    }
+    $("stockMarketRows").innerHTML = market.join("");
+    $("stockHoldingRows").innerHTML = holdings.join("");
+  }
+  function ownerSelectHtml(owner, attributes) {
+    return `<select ${attributes}>${[0,1,2,3,4].map(value => `<option value="${value}"${owner === value ? " selected" : ""}>${value ? `玩家 ${value}` : "无主"}</option>`).join("")}</select>`;
+  }
+  function propertyNodeLabel(type,node) {
+    if(type>2000&&type<4000){const index=type-2000;if(index<=mapMeta.housingCount){const name=decodeMapName(mapMeta.housingBase+index*HOUSING_STRIDE+4)||`住宅地 ${index}`;return `住宅 ${index}. ${name}（节点 ${node}）`;}}
+    if(type>4000&&type<6000){const index=type-4000;if(index<=mapMeta.businessCount){const name=decodeMapName(mapMeta.businessBase+index*BUSINESS_STRIDE+4)||`商业地 ${index}`;return `商业 ${index}. ${name}（入口节点 ${node}）`;}}
+    if(type>6000&&type<8000){const index=type-6000;if(index<=mapMeta.companyCount){const name=decodeMapName(mapMeta.companyBase+index*COMPANY_STRIDE+4)||`地图公司 ${index}`;return `公司 ${index}. ${name}（入口节点 ${node}）`;}}
+    return "";
+  }
+  function renderPropertyLocations() {
+    const select=$("propertyLocation"),selected=select.value,current=bytes?u16(po(currentPlayer(),"node")):0;select.innerHTML="";
+    if(!mapMeta)return;
+    for(let node=1;node<=mapMeta.nodeCount;node++){
+      const type=u16(mapMeta.nodeBase+node*NODE_STRIDE+0x20),label=propertyNodeLabel(type,node);
+      if(label)select.add(new Option(label,String(node)));
+    }
+    if([...select.options].some(option=>option.value===selected))select.value=selected;
+    else if([...select.options].some(option=>Number(option.value)===current))select.value=String(current);
+  }
+  function renderLand() {
+    if (!mapMeta) { $("housingLandRows").innerHTML = ""; $("businessLandRows").innerHTML = ""; $("mapCompanyRows").innerHTML = ""; renderPropertyLocations(); return; }
+    const housing = [];
+    for (let i = 1; i <= mapMeta.housingCount; i++) {
+      const offset = mapMeta.housingBase + i * HOUSING_STRIDE;
+      housing.push(`<tr><td>${i}</td><td>${decodeMapName(offset+4) || `住宅地 ${i}`}</td><td>${u16(offset)}</td><td>${u16(offset+2)}</td><td>${ownerSelectHtml(u8(offset+0x19),`data-land-kind="housing" data-land="${i}" data-land-field="owner"`)}</td><td><input data-land-kind="housing" data-land="${i}" data-land-field="level" type="number" min="0" max="5" value="${u8(offset+0x1A)}"></td><td><select data-land-kind="housing" data-land="${i}" data-land-field="type"><option value="0"${u8(offset+0x18)===0?" selected":""}>住宅</option><option value="1"${u8(offset+0x18)!==0?" selected":""}>连锁店</option></select></td><td><input data-land-kind="housing" data-land="${i}" data-land-field="state" type="number" min="0" max="255" value="${u8(offset+0x17)}"></td><td><input data-land-kind="housing" data-land="${i}" data-land-field="landPrice" type="number" min="0" max="65535" value="${u16(offset+0x1C)}"></td><td><input data-land-kind="housing" data-land="${i}" data-land-field="housePrice" type="number" min="0" max="65535" value="${u16(offset+0x1E)}"></td></tr>`);
+    }
+    const business = [];
+    for (let i = 1; i <= mapMeta.businessCount; i++) {
+      const offset = mapMeta.businessBase + i * BUSINESS_STRIDE;
+      business.push(`<tr><td>${i}</td><td>${decodeMapName(offset+4) || `商业地 ${i}`}</td><td>${u16(offset)}</td><td>${u16(offset+2)}</td><td>${ownerSelectHtml(u8(offset+0x19),`data-land-kind="business" data-land="${i}" data-land-field="owner"`)}</td><td><input data-land-kind="business" data-land="${i}" data-land-field="level" type="number" min="0" max="5" value="${u8(offset+0x1A)}"></td><td><input data-land-kind="business" data-land="${i}" data-land-field="type" type="number" min="0" max="255" value="${u8(offset+0x18)}"></td><td><input data-land-kind="business" data-land="${i}" data-land-field="state" type="number" min="0" max="255" value="${u8(offset+0x1C)}"></td><td><input data-land-kind="business" data-land="${i}" data-land-field="landPrice" type="number" min="0" max="65535" value="${u16(offset+0x22)}"></td><td><input data-land-kind="business" data-land="${i}" data-land-field="housePrice" type="number" min="0" max="65535" value="${u16(offset+0x24)}"></td></tr>`);
+    }
+    $("housingLandRows").innerHTML = housing.join("");
+    $("businessLandRows").innerHTML = business.join("");
+    $("landMapSummary").value = `住宅 ${mapMeta.housingCount} / 商业 ${mapMeta.businessCount} / 公司 ${mapMeta.companyCount}`;
+    renderMapCompanies();
+    renderPropertyLocations();
+  }
+  function renderMapCompanies() {
+    if (!mapMeta) { $("mapCompanyRows").innerHTML = ""; return; }
+    const rows = [];
+    for (let i = 1; i <= mapMeta.companyCount; i++) {
+      const offset = mapMeta.companyBase + i * COMPANY_STRIDE;
+      const stock = clamp(u8(offset + 0x19), 0, STOCK_COUNT - 1);
+      rows.push(`<tr><td>${i}</td><td>${decodeMapName(offset+4) || `地图公司 ${i}`}</td><td>${stock + 1}. ${stockName(stock)}</td><td>${u16(offset)}</td><td>${u16(offset+2)}</td><td>${ownerSelectHtml(u8(offset+0x18),`data-company="${i}" data-company-field="owner"`)}</td><td><input data-company="${i}" data-company-field="type" type="number" min="0" max="255" value="${u8(offset+0x1A)}"></td><td><input data-company="${i}" data-company-field="toll" type="number" min="0" max="65535" value="${u16(offset+0x22)}"></td></tr>`);
+    }
+    $("mapCompanyRows").innerHTML = rows.join("");
+  }
+  function renderStructure() {
+    if (!mapMeta) { $("structureStatus").innerHTML = `<span class="bad">地图结构未通过检查。</span>`; return; }
+    $("structureStatus").textContent = `${gameEdition()}；玩家 ${u32(0x0C)} 人；${mapNames[globalMapId()] || "地图"}；地图数据 ${mapMeta.size} bytes；节点 ${mapMeta.nodeCount}；住宅地 ${mapMeta.housingCount}；商业地 ${mapMeta.businessCount}；地图公司 ${mapMeta.companyCount}；股票 12 支。`;
+  }
+  function renderAll() { if (!bytes) return; renderPlayers(); renderCards(); renderStocks(); renderLand(); renderStructure(); }
+
+  function applyMoney(announce = true) {
+    const player = currentPlayer();
+    setI32(po(player,"cash"), clamp($("cash").value, 0, 2147483647));
+    setI32(po(player,"bank"), clamp($("bank").value, 0, 2147483647));
+    setU16(po(player,"coupon"), $("coupon").value);
+    setI32(po(player,"loan"), clamp($("loan").value, 0, 2147483647));
+    setI32(po(player,"specialFinance"), clamp($("specialFinance").value, 0, 2147483647));
+    if (announce) markChanged(`已修改玩家 ${player + 1} 的现金、存款、贷款、融资和点券。`);
+  }
+  function writeCards(player, sequence) { for (let slot = 0; slot < CARD_SLOTS; slot++) bytes[cardOffset(player) + slot] = sequence[slot] || 0; }
+  function selectedCards() { return Array.from(document.querySelectorAll("#cardChoices input:checked")).map(input => Number(input.value)); }
+  function fillStrongCardsBytes(player = currentPlayer()) { writeCards(player, strongCards); fillCardPoolBytes(); }
+  function fillStrongCards() { fillStrongCardsBytes(); markChanged("已写入 15 张强力卡片组合，并补满全局卡片池。"); }
+  function applyCardCycle() {
+    const selected = selectedCards();
+    if (!selected.length) { $("cardStatus").textContent = "请至少选择一种卡片。"; return; }
+    writeCards(currentPlayer(), Array.from({ length: CARD_SLOTS }, (_, index) => selected[index % selected.length]));
+    markChanged(`已按 ${selected.length} 种卡片循环填满 15 格。`);
+  }
+  function fillCardPool() { for (let i = 0; i < 30; i++) setU8(CARD_POOL + i, 99); markChanged("已把 30 种全局卡片库存设为 99。"); }
+  function clearCards(player = currentPlayer()) { writeCards(player, []); markChanged(`已清空玩家 ${player + 1} 的卡片。`); }
+  function fillItems() {
+    const player = currentPlayer();
+    const amount = clamp($("itemAmount").value, 0, 255);
+    for (let item = 0; item < ITEM_COUNT; item++) { bytes[itemOffset(player) + item] = amount; document.querySelector(`[data-item="${item}"]`).value = amount; }
+    markChanged(`已把玩家 ${player + 1} 的 13 类道具设为 ${amount}。`);
+  }
+  function applyIndividualItems() { const player = currentPlayer(); for (let item = 0; item < ITEM_COUNT; item++) bytes[itemOffset(player) + item] = clamp(document.querySelector(`[data-item="${item}"]`).value, 0, 255); }
+  function applyItemDetails() { applyIndividualItems(); markChanged(`已应用玩家 ${currentPlayer() + 1} 的 13 类道具明细。`); }
+  function clearItems() { const player = currentPlayer(); for (let item = 0; item < ITEM_COUNT; item++) bytes[itemOffset(player) + item] = 0; loadPlayerInputs(); markChanged(`已清空玩家 ${player + 1} 的道具。`); }
+  function clearOtherPlayers() {
+    const human = currentPlayer();
+    for (let player = 0; player < PLAYER_COUNT; player++) if (player !== human) { setU16(po(player,"coupon"),0); writeCards(player,[]); for(let item=0;item<ITEM_COUNT;item++) bytes[itemOffset(player)+item]=0; }
+    markChanged("已清空其他三名玩家的点券、卡片和道具。");
+  }
+  function applyCardsQuick() { fillStrongCardsBytes(); markChanged("已补满当前玩家卡片并刷新全局卡片池。"); }
+  function applyItemsQuick() {
+    const player=currentPlayer(),amount=clamp($("itemAmount").value,0,255);
+    for(let item=0;item<ITEM_COUNT;item++){bytes[itemOffset(player)+item]=amount;document.querySelector(`[data-item="${item}"]`).value=amount;}
+    setU8(po(player,"transport"),2);
+    markChanged(`已补满当前玩家 13 类道具并装备汽车，每类 ${amount} 个。`);
+  }
+  function applyStatusCreditQuick() {
+    const player=currentPlayer();
+    clearBadStateBytes(player);setI32(po(player,"loan"),0);setI32(po(player,"specialFinance"),0);setStatusDay(po(player,"assurance"),127);
+    loadPlayerInputs();markChanged("已清除当前玩家负面状态与附身，清空贷款和融资，并把保险设为 127 天。");
+  }
+  function bankruptOtherPlayers() {
+    const human=currentPlayer();
+    for(let player=0;player<PLAYER_COUNT;player++)if(player!==human){setU8(po(player,"control"),0);setI32(po(player,"cash"),-1);setI32(po(player,"bank"),-1);}
+    markChanged("其他三名玩家已标记为退出，并把现金、存款设为 -1。请确认这就是你想要的强制结束效果。");
+  }
+  function applyPreset() {
+    const player = currentPlayer();
+    applyIndividualItems();
+    setI32(po(player,"cash"),clamp($("cash").value,0,2147483647));
+    setI32(po(player,"bank"),clamp($("bank").value,0,2147483647));
+    setU16(po(player,"coupon"),$("coupon").value);
+    setI32(po(player,"loan"),0); setI32(po(player,"specialFinance"),0);
+    writeCards(player,strongCards);
+    const amount=clamp($("itemAmount").value,0,255); for(let item=0;item<ITEM_COUNT;item++) bytes[itemOffset(player)+item]=amount;
+    setU8(po(player,"transport"),2); setU8(po(player,"control"),1); clearBadStateBytes(player);
+    fillCardPoolBytes();
+    markChanged(`已完成玩家 ${player + 1} 的金钱、卡片、道具、汽车、控制权和状态强化。`);
+  }
+  function fillCardPoolBytes() { for (let i=0;i<30;i++) setU8(CARD_POOL+i,99); }
+
+  function clearBadStateBytes(player) {
+    for (const field of ["hotel","vanish","prison","hospital","sleep","dream","stay","slow","bankReject","noLoan"]) setU8(po(player,field),0);
+    setU8(po(player,"friendDays"),0); setU8(po(player,"friendPlayer"),0);
+    clearPossessionBytes(player);
+  }
+  function clearLocationStateBytes(player) {
+    for(const field of ["hotel","vanish","prison","hospital"])setU8(po(player,field),0);
+  }
+  function nodeNeighbors(node) {
+    if(!mapMeta||node<1||node>mapMeta.nodeCount)return [];
+    const offset=mapMeta.nodeBase+node*NODE_STRIDE+0x18,result=[];
+    for(let index=0;index<4;index++){const neighbor=u16(offset+index*2);if(neighbor>=1&&neighbor<=mapMeta.nodeCount&&!result.includes(neighbor))result.push(neighbor);}
+    return result;
+  }
+  function directionBetweenNodes(previous,node) {
+    if(!mapMeta||previous<1||previous>mapMeta.nodeCount||node<1||node>mapMeta.nodeCount)return null;
+    const previousOffset=mapMeta.nodeBase+previous*NODE_STRIDE,currentOffset=mapMeta.nodeBase+node*NODE_STRIDE;
+    const dx=i16(currentOffset)-i16(previousOffset),dy=i16(currentOffset+2)-i16(previousOffset+2);
+    if(dx===0&&dy===0)return null;
+    const sector=Math.round(Math.atan2(-dy,dx)/(Math.PI/4));
+    return (sector+10)%8;
+  }
+  function positionPlayerAtNode(player,node,clearLocation=true) {
+    if(!mapMeta)return null;
+    const safeNode=clamp(node,1,mapMeta.nodeCount),offset=mapMeta.nodeBase+safeNode*NODE_STRIDE,neighbors=nodeNeighbors(safeNode),oldPrevious=u16(po(player,"previousNode"));
+    setU16(po(player,"node"),safeNode);setI16(po(player,"x"),i16(offset));setI16(po(player,"y"),i16(offset+2));
+    setU16(po(player,"previousNode"),neighbors.includes(oldPrevious)?oldPrevious:(neighbors[0]||safeNode));
+    const direction=directionBetweenNodes(u16(po(player,"previousNode")),safeNode);if(direction!==null)setU8(po(player,"direction"),direction);
+    if(clearLocation)clearLocationStateBytes(player);
+    return {node:safeNode,x:i16(offset),y:i16(offset+2),previous:u16(po(player,"previousNode")),direction:u8(po(player,"direction"))};
+  }
+  function applyPlayerState(announce = true) {
+    const player=currentPlayer();
+    setU8(po(player,"control"),$("control").value);
+    setU8(po(player,"transport"),encodedTraffic(clamp($("transport").value,0,3),$("constructionDays").value));
+    const node=mapMeta?clamp($("mapNode").value,1,mapMeta.nodeCount):clamp($("mapNode").value,1,65535),loadedNode=Number($("mapNode").dataset.loadedNode),nodeChanged=node!==loadedNode;
+    setU16(po(player,"node"),node);
+    if(mapMeta&&$("autoSafePosition").checked&&nodeChanged)positionPlayerAtNode(player,node,false);
+    else if(!$("autoSafePosition").checked){setI16(po(player,"x"),$("posX").value);setI16(po(player,"y"),$("posY").value);}
+    const bindings={hotelDays:"hotel",vanishDays:"vanish",prisonDays:"prison",hospitalDays:"hospital",sleepDays:"sleep",dreamDays:"dream",stayDays:"stay",slowDays:"slow",bankRejectDays:"bankReject",noLoanDays:"noLoan",assuranceDays:"assurance",friendDays:"friendDays"};
+    for(const [id,field] of Object.entries(bindings)) writeStatusDayInput(id,po(player,field));
+    if(nodeChanged&&mapMeta&&$("autoSafePosition").checked)clearLocationStateBytes(player);
+    setU8(po(player,"friendPlayer"),$("friendPlayer").value);const possession=applyPossessionInputs(player);
+    setI32(po(player,"loan"),clamp($("loan").value,0,2147483647)); setI32(po(player,"specialFinance"),clamp($("specialFinance").value,0,2147483647));
+    if (announce) { loadPlayerInputs(); markChanged(`已应用玩家 ${player+1} 的状态、位置、交通和控制权。${possession.godOk?"":" 未找到对应神明事件槽。"}${possession.bombOk?"":" 没有空闲炸弹事件槽，炸弹未新增。"}`); }
+  }
+  function safePosition() {
+    if(!mapMeta)return;
+    const player=currentPlayer(),result=positionPlayerAtNode(player,$("mapNode").value,true);
+    loadPlayerInputs();renderPropertyLocations();markChanged(`已把玩家 ${player+1} 安全定位到节点 ${result.node}（${result.x}, ${result.y}），前序节点 ${result.previous}，并解除会覆盖位置的场所状态。`);
+  }
+  function locateProperty() {
+    if(!mapMeta||!$("propertyLocation").value)return;
+    const player=currentPlayer(),node=clamp($("propertyLocation").value,1,mapMeta.nodeCount),type=u16(mapMeta.nodeBase+node*NODE_STRIDE+0x20),label=propertyNodeLabel(type,node),result=positionPlayerAtNode(player,node,true);
+    loadPlayerInputs();renderPropertyLocations();markChanged(`已把玩家 ${player+1} 定位到${label}，坐标（${result.x}, ${result.y}），前序节点 ${result.previous}。`);
+  }
+  function clearBadState() { const p=currentPlayer(); clearBadStateBytes(p); loadPlayerInputs(); markChanged(`已清除玩家 ${p+1} 的负面状态。`); }
+  function applyPossession() {const player=currentPlayer(),result=applyPossessionInputs(player);loadPlayerInputs();markChanged(`已应用玩家 ${player+1} 的附身状态。${result.godOk?"":" 未找到对应神明事件槽。"}${result.bombOk?"":" 没有空闲炸弹事件槽，炸弹未新增。"}`);}
+  function applyPossessionPreset() {
+    const preset=$("possessionPreset").value,values={clear:[0,0,0,0],fortune:[2,7,0,0],blessing:[4,7,0,0],angel:[9,7,0,0],land:[12,7,0,0],death:[15,13,0,0]}[preset];
+    if(!values)return;[$("godType").value,$("godDays").value,$("attachedItem").value,$("bombSteps").value]=values.map(String);refreshPossessionPreview();
+  }
+  function refreshPossessionPreview() {const rawType=$("godType").value,rawItem=$("attachedItem").value,type=clamp(rawType,0,15),item=clamp(rawItem,0,18),godName=rawType==="keep"?"保留当前":godTypeNames[type],itemName=rawItem==="keep"?"保留当前":item===18?`定时炸弹（${clamp($("bombSteps").value,1,255)} 步）`:"无";$("possessionSummary").value=`待应用：神明 ${godName}（${type||rawType==="keep"?clamp($("godDays").value,1,255):0} 天）；附身物品 ${itemName}`;}
+  function clearPossession() { const p=currentPlayer();clearPossessionBytes(p);loadPlayerInputs();markChanged(`已清除玩家 ${p+1} 的神明附身与定时炸弹。`); }
+  function clearRoadEvents() {
+    for(let player=0;player<PLAYER_COUNT;player++)clearPossessionBytes(player);
+    for(let event=0;event<EVENT_COUNT;event++){const offset=EVENT_BASE+event*EVENT_STRIDE;bytes.fill(0,offset+1,offset+EVENT_STRIDE);}
+    loadPlayerInputs();markChanged(`已清空 ${EVENT_COUNT} 条道路事件，并解除所有玩家附身。事件槽类型已保留，可由游戏继续复用。`);
+  }
+  function setCar() { const p=currentPlayer(); setU8(po(p,"transport"),2); loadPlayerInputs(); markChanged(`玩家 ${p+1} 已设置为汽车。`); }
+  function setHumanControl() { const p=currentPlayer(); setU8(po(p,"control"),1); loadPlayerInputs(); markChanged(`玩家 ${p+1} 已设为玩家控制。`); }
+  function setComputersControl() { const human=currentPlayer(); for(let p=0;p<PLAYER_COUNT;p++) setU8(po(p,"control"),p===human?1:2); loadPlayerInputs(); markChanged("当前玩家设为人工控制，其他三名玩家设为电脑控制。"); }
+
+  function applyGlobalState(announce = true) {
+    setU8(4,clamp($("day").value,1,31)); setU8(5,clamp($("month").value,1,12)); setU16(6,clamp($("year").value,1998,2099));
+    setI32(CURRENT_PLAYER,clamp($("turnPlayer").value,0,3)); setI32(STARTING_MONEY,clamp($("startingMoney").value,1,2147483647)); setI32(PRICE_INDEX,clamp($("priceIndex").value,1,9999));
+    if (announce) markChanged(`已设置日期、回合、启动资金和游戏物价级别 ${i32(PRICE_INDEX)}。`);
+  }
+
+  function humanLiquidAssets() { const player=currentPlayer();return Math.max(0,i32(po(player,"cash")))+Math.max(0,i32(po(player,"bank"))); }
+  function playerLandValue(player) {
+    if(!mapMeta)return 0;
+    const owner=player+1;let total=0;
+    for(let i=1;i<=mapMeta.housingCount;i++){
+      const offset=mapMeta.housingBase+i*HOUSING_STRIDE;
+      if(u8(offset+0x19)!==owner)continue;
+      const land=u16(offset+0x1C),house=u16(offset+0x1E);
+      total+=land+(u8(offset+0x18)!==0?house:u8(offset+0x1A)*house);
+    }
+    for(let i=1;i<=mapMeta.businessCount;i++){
+      const offset=mapMeta.businessBase+i*BUSINESS_STRIDE;
+      if(u8(offset+0x19)===owner)total+=u16(offset+0x22)+u8(offset+0x1A)*u16(offset+0x24);
+    }
+    return total;
+  }
+  function playerTotalAssets(player) {
+    return i32(po(player,"cash"))+i32(po(player,"bank"))-i32(po(player,"loan"))+playerStockValue(player)+playerLandValue(player);
+  }
+  function activePlayers() {
+    const count=clamp(u32(0x0C),1,PLAYER_COUNT),result=[];
+    for(let player=0;player<count;player++)if(u8(po(player,"control"))!==0)result.push(player);
+    return result;
+  }
+  function priceAssetSummary() {
+    const player=currentPlayer(),active=activePlayers(),starting=Math.max(1,i32(STARTING_MONEY));
+    const liquid=humanLiquidAssets(),stocks=playerStockValue(player),land=playerLandValue(player),loan=Math.max(0,i32(po(player,"loan"))),total=liquid+stocks+land-loan;
+    const allAssets=active.reduce((sum,slot)=>sum+playerTotalAssets(slot),0),average=active.length?allAssets/active.length:0;
+    return {player,active,starting,liquid,stocks,land,loan,total,allAssets,average,estimatedIndex:average/starting,gameLevel:Math.max(1,i32(PRICE_INDEX)),ratio:liquid+stocks?stocks/(liquid+stocks)*100:0};
+  }
+  function showPriceSummary(prefix="当前") {
+    const info=priceAssetSummary();
+    $("globalStatus").textContent=`${prefix}：估算资产指数 ${info.estimatedIndex.toFixed(1)}；游戏物价级别 ${info.gameLevel}；我方总资产约 ${Math.round(info.total)}（现金与存款 ${Math.round(info.liquid)}，股票 ${Math.round(info.stocks)}，地产 ${Math.round(info.land)}，贷款 ${Math.round(info.loan)}）；股票占现金与股票 ${(info.ratio).toFixed(1)}%。`;
+  }
+  function capLiquidAssetsBytes() {
+    const player=currentPlayer(),cap=clamp($("friendlyCashCap").value,0,2147483647),old=humanLiquidAssets(),kept=Math.min(old,cap);
+    setI32(po(player,"cash"),kept);setI32(po(player,"bank"),0);
+    return Math.max(0,old-kept);
+  }
+  function capStockAssetsBytes() {
+    const player=currentPlayer(),ratio=clamp($("friendlyStockRatio").value,1,100),liquid=humanLiquidAssets(),current=playerStockValue(player);
+    const maximum=ratio>=100?Number.POSITIVE_INFINITY:liquid*ratio/(100-ratio);
+    if(current<=maximum||current<=0)return 0;
+    let returned=0;
+    for(let stock=0;stock<STOCK_COUNT;stock++){
+      const offset=playerStockOffset(player,stock),old=Math.max(0,i32(offset)),cost=Math.max(0,f32(offset+4)),next=Math.floor(old*maximum/current),giveBack=old-next;
+      if(giveBack>0){setPlayerStock(player,stock,next,next?cost:0);setU16(stockOffset(stock)+8,Math.min(65535,Math.max(0,stockCap(stock)-totalHeldShares(stock))));returned+=giveBack;}
+    }
+    return returned;
+  }
+  function capHumanLiquidAssets() {const removed=capLiquidAssetsBytes();syncMapCompanyOwners(false);loadPlayerInputs();markChanged(`已限制现金与存款，移除超出上限的 ${Math.round(removed)}。`);showPriceSummary("限制后");}
+  function capHumanStockAssets() {const returned=capStockAssetsBytes();syncMapCompanyOwners(false);markChanged(`已按股票占比上限缩减持股，退回可流通股 ${returned} 股。`);showPriceSummary("限制后");}
+  function allocateStockTier(candidates,budget) {
+    const maximum=candidates.reduce((sum,item)=>sum+item.maxShares*item.price,0),limit=Math.max(0,budget),ratio=maximum?Math.min(1,limit/maximum):0;
+    let used=0;
+    for(const item of candidates){item.shares=Math.floor(item.maxShares*ratio);used+=item.shares*item.price;}
+    let remaining=Math.max(0,limit-used);
+    for(const item of [...candidates].sort((a,b)=>a.price-b.price||a.stock-b.stock)){
+      const extra=Math.min(item.maxShares-item.shares,Math.floor((remaining+0.000001)/item.price));
+      if(extra>0){item.shares+=extra;used+=extra*item.price;remaining-=extra*item.price;}
+    }
+    return {used,remaining,capacity:maximum};
+  }
+  function allocateHumanStocksToBudget(stockBudget) {
+    const player=currentPlayer(),candidates=[];
+    for(let stock=0;stock<STOCK_COUNT;stock++){
+      let others=0;for(let slot=0;slot<PLAYER_COUNT;slot++)if(slot!==player)others+=Math.max(0,i32(playerStockOffset(slot,stock)));
+      candidates.push({stock,price:Math.max(.01,f32(stockOffset(stock)+20)),maxShares:Math.max(0,stockCap(stock)-others),shares:0,map:isMapStock(stock)});
+    }
+    let remaining=Math.max(0,stockBudget),capacity=0;
+    const groups=$("prioritizeMapStocks").checked?[candidates.filter(item=>item.map),candidates.filter(item=>!item.map)]:[candidates];
+    for(const group of groups){const result=allocateStockTier(group,remaining);remaining=Math.max(0,remaining-result.used);capacity+=result.capacity;}
+    for(const item of candidates){
+      setPlayerStock(player,item.stock,item.shares,item.shares?item.price:0);
+      const market=stockOffset(item.stock),available=Math.max(0,stockCap(item.stock)-totalHeldShares(item.stock));
+      setU16(market+8,Math.min(65535,available));setU16(market+10,Math.min(u16(market+10),u16(market+8)));
+    }
+    const value=playerStockValue(player),held=candidates.filter(item=>item.shares>0).length;
+    return {value,held,capacity,shortage:Math.max(0,stockBudget-value)};
+  }
+  function targetPricePlan(exact) {
+    const before=priceAssetSummary(),human=before.player,target=Math.round(clampNumber($("targetPriceIndex").value,.1,999.9)*10)/10;
+    if(!before.active.includes(human))return {...before,human,target,error:"当前编辑玩家已经退出，不参与游戏物价计算。"};
+    const effective=exact?target:Math.min(target,before.estimatedIndex),others=before.active.filter(player=>player!==human).reduce((sum,player)=>sum+playerTotalAssets(player),0);
+    const targetAllAssets=effective*before.starting*before.active.length,targetHumanAssets=targetAllAssets-others;
+    const fixedAssets=playerLandValue(human)-Math.max(0,i32(po(human,"loan"))),desiredAdjustable=Math.max(0,targetHumanAssets-fixedAssets);
+    const cashCap=clamp($("friendlyCashCap").value,0,2147483647),stockRatio=clamp($("friendlyStockRatio").value,1,100)/100,overflow=$("overflowCashToStocks").checked;
+    const hardMaximum=stockRatio>=1?Number.POSITIVE_INFINITY:cashCap/(1-stockRatio),allowedAdjustable=overflow?desiredAdjustable:Math.min(desiredAdjustable,hardMaximum);
+    const cashBudget=Math.min(cashCap,Math.max(0,Math.floor(allowedAdjustable))),stockBudget=Math.max(0,allowedAdjustable-cashBudget);
+    return {...before,human,target,effective,others,targetAllAssets,targetHumanAssets,fixedAssets,desiredAdjustable,cashCap,stockRatio,overflow,hardMaximum,allowedAdjustable,cashBudget,stockBudget};
+  }
+  function applyPriceMode(exact) {
+    const modeName=exact?"目标物价指数模式":"物价友好模式",plan=targetPricePlan(exact);
+    if(plan.error){$("globalStatus").textContent=plan.error;return;}
+    if(!exact&&plan.estimatedIndex<=plan.target+0.00001){
+      const correctedLevel=Math.max(1,Math.floor(plan.estimatedIndex+0.000001));
+      if(plan.gameLevel!==correctedLevel){setI32(PRICE_INDEX,correctedLevel);loadGlobalInputs();dirty=true;}
+      $("globalStatus").textContent=`${modeName}：当前估算资产指数 ${plan.estimatedIndex.toFixed(1)} 已不高于目标 ${plan.target.toFixed(1)}，未增加或重分配资产；游戏物价级别已校正为 ${correctedLevel}。`;
+      return;
+    }
+    const allocation=allocateHumanStocksToBudget(plan.stockBudget),cash=clamp(plan.cashBudget,0,2147483647);
+    setI32(po(plan.human,"cash"),cash);setI32(po(plan.human,"bank"),0);
+    syncMapCompanyOwners(false);
+    let after=priceAssetSummary();
+    const levelBasis=Math.abs(after.estimatedIndex-plan.effective)<=.05?plan.effective:after.estimatedIndex;
+    const level=Math.max(1,Math.floor(levelBasis+0.000001));
+    setI32(PRICE_INDEX,exact?level:Math.min(plan.gameLevel,level));
+    after=priceAssetSummary();loadAllInputs();renderAll();dirty=true;
+    const targetGap=Math.abs(after.estimatedIndex-plan.effective),stockRatio=after.liquid+after.stocks?after.stocks/(after.liquid+after.stocks):0;
+    const notes=[];
+    if(plan.targetHumanAssets<plan.fixedAssets)notes.push("电脑与我方固定地产/贷款结构已超过目标，且本模式不改电脑和地产");
+    if(!plan.overflow&&plan.allowedAdjustable+1<plan.desiredAdjustable)notes.push("现金上限与股票占比硬限制截断了目标资产");
+    if(allocation.shortage>1)notes.push(plan.stockBudget>allocation.capacity+1?`股票总可买市值不足，约 ${Math.round(allocation.shortage)} 的预算无法转入股票`:`按整股分配后约 ${Math.round(allocation.shortage)} 的预算未使用`);
+    if(targetGap>.05)notes.push(`受上述限制，距离目标仍约 ${targetGap.toFixed(1)} 个指数`);
+    const suffix=notes.length?`；限制说明：${notes.join("；")}`:"";
+    markChanged(`${modeName}已按全体玩家真实总资产重新计算。`);
+    $("globalStatus").textContent=`${modeName}完成：目标 ${plan.target.toFixed(1)}，完成后估算资产指数 ${after.estimatedIndex.toFixed(1)}，游戏物价级别 ${after.gameLevel}；我方总资产约 ${Math.round(after.total)}（现金与存款 ${Math.round(after.liquid)}/${plan.cashCap}，股票 ${Math.round(after.stocks)}，地产 ${Math.round(after.land)}，贷款 ${Math.round(after.loan)}），股票占现金与股票 ${(stockRatio*100).toFixed(1)}%/${(plan.stockRatio*100).toFixed(0)}%，持有 ${allocation.held}/12 支${suffix}。未修改电脑资产、地产归属、过路费和股价。`;
+  }
+
+  function setPlayerStock(player,stock,amount,cost){const offset=playerStockOffset(player,stock);setI32(offset,clamp(amount,0,2147483647));setF32(offset+4,Math.max(0,Number(cost)||0));}
+  function applyStockTables(announce = true) {
+    for(let stock=0;stock<STOCK_COUNT;stock++){
+      const offset=stockOffset(stock); const mv=field=>document.querySelector(`[data-stock="${stock}"][data-market="${field}"]`).value;
+      setU16(offset+8,mv("available"));setU16(offset+10,mv("volume"));setF32(offset+12,mv("basePrice"));setF32(offset+16,mv("yesterday"));setF32(offset+20,mv("today"));setF32(offset+24,mv("volatility"));setF32(offset+28,mv("profit"));view.setUint32(offset+32,clamp(mv("state"),0,4294967295),true);
+      for(let p=0;p<PLAYER_COUNT;p++){const amount=document.querySelector(`[data-stock="${stock}"][data-player="${p}"][data-holding="amount"]`).value;const cost=document.querySelector(`[data-stock="${stock}"][data-player="${p}"][data-holding="cost"]`).value;setPlayerStock(p,stock,amount,cost);}
+    }
+    stockShareTotals=Array.from({length:STOCK_COUNT},(_,stock)=>currentStockTotal(stock));
+    if($("autoSyncCompanyRights").checked)syncMapCompanyOwners(false);
+    if (announce) markChanged(`已应用 12 支股票的市场信息、玩家持股和平均成本${$("autoSyncCompanyRights").checked?"，并同步地图经营权":""}。`);
+  }
+  function buyAllStocks() {
+    const human=currentPlayer();let bought=0;
+    for(let s=0;s<STOCK_COUNT;s++){const so=stockOffset(s),available=Math.min(u16(so+8),Math.max(0,stockCap(s)-totalHeldShares(s))),poff=playerStockOffset(human,s),old=Math.max(0,i32(poff)),price=Math.max(.01,f32(so+20));if(available>0){const next=old+available;const oldCost=Math.max(0,f32(poff+4));setPlayerStock(human,s,next,(old*oldCost+available*price)/next);setU16(so+8,Math.max(0,stockCap(s)-totalHeldShares(s)));setU16(so+10,Math.min(u16(so+10),u16(so+8)));bought+=available;}}
+    syncMapCompanyOwners(false);markChanged(`我方已买光 12 支股票共 ${bought} 股可流通股份，并同步地图经营权。`);
+  }
+  function controlAllStocks() {
+    const human=currentPlayer();
+    for(let s=0;s<STOCK_COUNT;s++){const cap=stockCap(s);for(let p=0;p<PLAYER_COUNT;p++)setPlayerStock(p,s,p===human?cap:0,p===human?Math.max(.01,f32(stockOffset(s)+20)):0);setU16(stockOffset(s)+8,0);setU16(stockOffset(s)+10,0);}
+    syncMapCompanyOwners(false);markChanged(`玩家 ${human+1} 已取得全部 12 支股票的完整控股，电脑持股同步清零。`);
+  }
+  function controlMapStocks() {
+    const human=currentPlayer();let count=0;
+    for(let stock=0;stock<STOCK_COUNT;stock++)if(isMapStock(stock)){const cap=stockCap(stock);for(let player=0;player<PLAYER_COUNT;player++)setPlayerStock(player,stock,player===human?cap:0,player===human?Math.max(.01,f32(stockOffset(stock)+20)):0);setU16(stockOffset(stock)+8,0);setU16(stockOffset(stock)+10,0);count++;}
+    syncMapCompanyOwners(false);markChanged(`玩家 ${human+1} 已取得 ${count} 支地图经营公司股票的完整控股。`);
+  }
+  function setHumanStocks() {
+    const human=currentPlayer(),desired=clamp($("stockShares").value,0,65535);
+    let limited=0;
+    for(let s=0;s<STOCK_COUNT;s++){const cap=stockCap(s);let others=0;for(let p=0;p<PLAYER_COUNT;p++)if(p!==human)others+=Math.max(0,i32(playerStockOffset(p,s)));const shares=Math.min(desired,Math.max(0,cap-others));if(shares<desired)limited++;const price=Math.max(.01,f32(stockOffset(s)+20));setPlayerStock(human,s,shares,price);setU16(stockOffset(s)+8,Math.max(0,Math.min(65535,cap-others-shares)));}
+    syncMapCompanyOwners(false);markChanged(`玩家 ${human+1} 的每支股票已设置为指定数量并重算可流通股；${limited} 支因电脑已有持股而按公司总股本截断。`);
+  }
+  function clearComputerStocks() {const human=currentPlayer();for(let s=0;s<STOCK_COUNT;s++){for(let p=0;p<PLAYER_COUNT;p++)if(p!==human)setPlayerStock(p,s,0,0);setU16(stockOffset(s)+8,Math.min(65535,Math.max(0,stockCap(s)-totalHeldShares(s))));setU16(stockOffset(s)+10,Math.min(u16(stockOffset(s)+10),u16(stockOffset(s)+8)));}syncMapCompanyOwners(false);markChanged("已清空其他三名玩家股票，把股份退回可流通量，并同步地图经营权。");}
+  function setStockPrices() {const price=Number($("stockPrice").value);if(!Number.isFinite(price)||price<=0){$("stockStatus").textContent="请先输入统一股价；留空表示不修改。";return;}for(let s=0;s<STOCK_COUNT;s++){const o=stockOffset(s);setF32(o+16,price);setF32(o+20,price);}markChanged(`12 支股票的昨日价和今日价已设置为 ${price}。`);}
+  function batchStockMarket() {const available=clamp($("stockAvailable").value,0,65535),volume=clamp($("stockVolume").value,0,65535),profit=Math.max(0,Number($("stockProfit").value)||0);for(let stock=0;stock<STOCK_COUNT;stock++){const offset=stockOffset(stock);setU16(offset+8,available);setU16(offset+10,Math.min(volume,available));setF32(offset+28,profit);}stockShareTotals=Array.from({length:STOCK_COUNT},(_,stock)=>currentStockTotal(stock));markChanged(`已批量设置 12 支股票的可流通股 ${available}、今日现量 ${Math.min(volume,available)}、累计盈余 ${profit}；总股本已按新数值更新。`);}
+  function repairStockAndCompanyRights() {
+    let overallocated=0;
+    for(let stock=0;stock<STOCK_COUNT;stock++){const cap=stockCap(stock),held=totalHeldShares(stock),available=Math.max(0,cap-held);if(held>cap)overallocated++;setU16(stockOffset(stock)+8,Math.min(65535,available));setU16(stockOffset(stock)+10,Math.min(u16(stockOffset(stock)+10),u16(stockOffset(stock)+8)));}
+    const changed=syncMapCompanyOwners(false);markChanged(`已修复 12 支股票的可流通量、今日现量和地图经营权；经营者变化 ${changed} 家${overallocated?`，另有 ${overallocated} 支股票持股超过总股本，请在持股表调整`:""}。`);
+  }
+  function syncMapCompanyOwners(announce=true) {
+    if(!mapMeta)return 0;let changed=0;
+    for(let i=1;i<=mapMeta.companyCount;i++){const offset=mapMeta.companyBase+i*COMPANY_STRIDE,stock=clamp(u8(offset+0x19),0,STOCK_COUNT-1),owner=stockManagerId(stock);if(u8(offset+0x18)!==owner){setU8(offset+0x18,owner);changed++;}}
+    if(announce)markChanged(`已按股票持股唯一最多者同步 ${mapMeta.companyCount} 家地图公司经营权，其中 ${changed} 家发生变化。`);
+    return changed;
+  }
+
+  function forEachLand(callback) {
+    if(!mapMeta)return;
+    for(let i=1;i<=mapMeta.housingCount;i++)callback("housing",i,mapMeta.housingBase+i*HOUSING_STRIDE);
+    for(let i=1;i<=mapMeta.businessCount;i++)callback("business",i,mapMeta.businessBase+i*BUSINESS_STRIDE);
+  }
+  function setAllLandOwner(owner) {forEachLand((kind,i,o)=>setU8(o+0x19,owner));markChanged(`全部住宅和商业土地已设为${owner?`玩家 ${owner}`:"无主"}。`);}
+  function clearComputerLand() {const human=currentPlayer()+1;let count=0;forEachLand((kind,i,o)=>{const owner=u8(o+0x19);if(owner&&owner!==human){setU8(o+0x19,0);setU8(o+0x1A,0);count++;}});markChanged(`已清空其他玩家的 ${count} 块土地和地产等级。`);}
+  function batchLandPrices() {const landPrice=clamp($("landPrice").value,0,65535),housePrice=clamp($("landHousePrice").value,0,65535);let count=0;forEachLand((kind,i,offset)=>{if(kind==="housing"){setU16(offset+0x1C,landPrice);setU16(offset+0x1E,housePrice);}else{setU16(offset+0x22,landPrice);setU16(offset+0x24,housePrice);}count++;});markChanged(`已批量设置 ${count} 块住宅地和商业地：地价 ${landPrice}，每级建屋价 ${housePrice}。`);}
+  function updateLandLevels(mode) {const owner=clamp($("landPlayer").value,1,4);let count=0;forEachLand((kind,i,o)=>{if(u8(o+0x19)!==owner)return;const old=u8(o+0x1A);const next=mode==="up"?Math.min(5,old+1):mode==="down"?Math.max(0,old-1):5;if(next!==old){setU8(o+0x1A,next);count++;}});markChanged(`玩家 ${owner} 的 ${count} 块地产已${mode==="up"?"升 1 级":mode==="down"?"降 1 级":"升至 5 级"}。`);}
+  function clearSelectedPlayerLand() {const owner=clamp($("landPlayer").value,1,4);let count=0;forEachLand((kind,i,o)=>{if(u8(o+0x19)===owner){setU8(o+0x19,0);setU8(o+0x1A,0);count++;}});markChanged(`已清空玩家 ${owner} 的 ${count} 块土地和地产。`);}
+  function applyLandTable(announce = true) {
+    document.querySelectorAll("[data-land-kind][data-land-field]").forEach(input=>{const kind=input.dataset.landKind,index=Number(input.dataset.land),field=input.dataset.landField;const base=kind==="housing"?mapMeta.housingBase+index*HOUSING_STRIDE:mapMeta.businessBase+index*BUSINESS_STRIDE;const schema=kind==="housing"?{owner:[0x19,1],level:[0x1A,1],type:[0x18,1],state:[0x17,1],landPrice:[0x1C,2],housePrice:[0x1E,2]}:{owner:[0x19,1],level:[0x1A,1],type:[0x18,1],state:[0x1C,1],landPrice:[0x22,2],housePrice:[0x24,2]};const [rel,size]=schema[field];size===1?setU8(base+rel,input.value):setU16(base+rel,input.value);});
+    if (announce) markChanged("已应用住宅地和商业地明细表修改。");
+  }
+  function applyCompanyTable(announce=true) {
+    if(!mapMeta)return;
+    document.querySelectorAll("[data-company][data-company-field]").forEach(input=>{const offset=mapMeta.companyBase+Number(input.dataset.company)*COMPANY_STRIDE,field=input.dataset.companyField;if(field==="owner")setU8(offset+0x18,input.value);else if(field==="type")setU8(offset+0x1A,input.value);else if(field==="toll")setU16(offset+0x22,input.value);});
+    if(announce)markChanged("已应用地图经营公司的经营者、类型和收费明细。");
+  }
+  function batchCompanyToll(zero=false) {if(!mapMeta)return;const toll=zero?0:clamp($("companyToll").value,0,65535);for(let i=1;i<=mapMeta.companyCount;i++)setU16(mapMeta.companyBase+i*COMPANY_STRIDE+0x22,toll);markChanged(`已把 ${mapMeta.companyCount} 家地图公司的收费设为 ${toll}。`);}
+  function controlMapCompanies() {
+    if(!mapMeta)return;const human=currentPlayer(),stocks=new Set();
+    for(let i=1;i<=mapMeta.companyCount;i++)stocks.add(clamp(u8(mapMeta.companyBase+i*COMPANY_STRIDE+0x19),0,STOCK_COUNT-1));
+    for(const stock of stocks){const cap=stockCap(stock);for(let player=0;player<PLAYER_COUNT;player++)setPlayerStock(player,stock,player===human?cap:0,player===human?Math.max(.01,f32(stockOffset(stock)+20)):0);setU16(stockOffset(stock)+8,0);setU16(stockOffset(stock)+10,0);}
+    syncMapCompanyOwners(false);markChanged(`玩家 ${human+1} 已取得全部 ${stocks.size} 支地图公司股票和 ${mapMeta.companyCount} 个经营点的经营权。`);
+  }
+
+  function applyAllSettings() {
+    if (mapMeta) { applyLandTable(false); applyCompanyTable(false); }
+    applyStockTables(false);
+    applyMoney(false);
+    applyPlayerState(false);
+    applyGlobalState(false);
+    applyIndividualItems();
+    const selected=selectedCards();
+    if(selected.length)writeCards(currentPlayer(),Array.from({length:CARD_SLOTS},(_,index)=>selected[index%selected.length]));
+    markChanged("已一次应用当前页面的金钱、人物状态、位置、日期、物价、股票、土地、地图公司、卡片循环和道具明细。");
+  }
+
+  function prepareForSave() {
+    if(!bytes)return;
+    if(bytes.byteLength<MIN_SAVE_SIZE)throw new Error("存档数据不完整，已阻止保存。");
+    if(mapMeta&&$("autoSyncCompanyRights").checked)syncMapCompanyOwners(false);
+  }
+  function makeDownload(auto=true) {if(!bytes)return;prepareForSave();clearDownload();downloadUrl=URL.createObjectURL(new Blob([bytes],{type:"application/octet-stream"}));const base=fileName.replace(/\.dat$/i,"");const out=`${base}.modified.DAT`;$("downloadArea").style.display="block";$("downloadArea").innerHTML=`<a id="downloadLink" href="${downloadUrl}" download="${out}">${out}</a>`;if(auto)setTimeout(()=>$("downloadLink").click(),0);}
+  async function openNative(){if(!window.showOpenFilePicker){$("fileInput").click();return;}const[handle]=await window.showOpenFilePicker({multiple:false,types:[{description:"大富翁4存档",accept:{"application/octet-stream":[".dat",".DAT"]}}]});await loadFile(await handle.getFile(),handle);}
+  async function saveDirect(){if(!fileHandle||typeof fileHandle.createWritable!=="function")throw new Error("当前打开方式不支持直接覆盖，请使用保存/另存为或下载。");prepareForSave();const writable=await fileHandle.createWritable();await writable.write(bytes);await writable.close();dirty=false;$("status").innerHTML=`<span class="ok">已直接覆盖 ${fileName}。</span>`;}
+  async function saveAs(){prepareForSave();if(!window.showSaveFilePicker){makeDownload(true);return;}const handle=await window.showSaveFilePicker({suggestedName:fileName,types:[{description:"大富翁4存档",accept:{"application/octet-stream":[".dat",".DAT"]}}]});const writable=await handle.createWritable();await writable.write(bytes);await writable.close();fileHandle=handle;fileName=(await handle.getFile()).name;dirty=false;setEnabled(true);$("status").innerHTML=`<span class="ok">已保存 ${fileName}。</span>`;}
+  function settingsStorage(){try{return window.localStorage||null;}catch(_){return null;}}
+  function saveSettings(){const storage=settingsStorage();if(!storage){$("status").textContent="当前浏览器的本地文件模式不允许保存页面配置。";return;}const ids=["cash","bank","coupon","loan","specialFinance","itemAmount","stockShares","stockPrice","stockAvailable","stockVolume","stockProfit","startingMoney","priceIndex","targetPriceIndex","friendlyCashCap","friendlyStockRatio","transport","constructionDays","godType","godDays","attachedItem","bombSteps","landPrice","landHousePrice","companyToll"];const checks=["overflowCashToStocks","prioritizeMapStocks","autoSyncCompanyRights","autoSafePosition"];const settings={cards:selectedCards(),checks:{}};for(const id of ids)if($(id).value!=="keep")settings[id]=$(id).value;for(const id of checks)settings.checks[id]=$(id).checked;storage.setItem(SETTINGS_KEY,JSON.stringify(settings));$("status").innerHTML='<span class="ok">当前全局配置已保存。</span>';}
+  function loadSettings(silent=false){const storage=settingsStorage();if(!storage){if(!silent)$("status").textContent="当前浏览器的本地文件模式不允许读取页面配置。";return;}const raw=storage.getItem(SETTINGS_KEY);if(!raw){if(!silent)$("status").textContent="没有找到已保存配置。";return;}try{const settings=JSON.parse(raw);for(const[id,value]of Object.entries(settings))if(id!=="cards"&&id!=="checks"&&$(id))$(id).value=value;if(settings.checks)for(const[id,value]of Object.entries(settings.checks))if($(id))$(id).checked=Boolean(value);if(Array.isArray(settings.cards)){const selected=new Set(settings.cards.map(Number));document.querySelectorAll("#cardChoices input").forEach(input=>{input.checked=selected.has(Number(input.value));});}if(!silent)$("status").innerHTML='<span class="ok">已读取配置。</span>';}catch(error){if(!silent)$("status").innerHTML=`<span class="bad">配置读取失败：${error.message}</span>`;}}
+
+  $("fileInput").addEventListener("change",event=>{const file=event.target.files&&event.target.files[0];if(file)loadFile(file).catch(error=>$("status").innerHTML=`<span class="bad">${error.message}</span>`).finally(()=>{event.target.value="";});});
+  $("openNative").addEventListener("click",()=>openNative().catch(error=>$("status").innerHTML=`<span class="bad">${error.message}</span>`));
+  $("saveDirect").addEventListener("click",()=>saveDirect().catch(error=>{makeDownload(false);$("status").innerHTML=`<span class="bad">${error.message}</span> 已生成手动下载链接。`;}));
+  $("saveAs").addEventListener("click",()=>saveAs().catch(error=>$("status").innerHTML=`<span class="bad">${error.message}</span>`));
+  $("download").addEventListener("click",()=>makeDownload(true));
+  $("playerSlot").addEventListener("change",()=>{loadPlayerInputs();renderPlayers();renderCards();renderPropertyLocations();});
+  $("landEncoding").addEventListener("change",renderLand);
+  $("possessionPreset").addEventListener("change",applyPossessionPreset);for(const id of ["godType","godDays","attachedItem","bombSteps"])$(id).addEventListener("input",()=>{$("possessionPreset").value="custom";refreshPossessionPreview();});
+  $("applyMoney").addEventListener("click",()=>applyMoney(true));$("applyCardsQuick").addEventListener("click",applyCardsQuick);$("applyItemsQuick").addEventListener("click",applyItemsQuick);$("applyStatusCreditQuick").addEventListener("click",applyStatusCreditQuick);$("applyPreset").addEventListener("click",applyPreset);$("applyAllSettings").addEventListener("click",applyAllSettings);$("clearComputers").addEventListener("click",clearOtherPlayers);$("bankruptComputers").addEventListener("click",bankruptOtherPlayers);
+  $("fillStrongCards").addEventListener("click",fillStrongCards);$("applyCardCycle").addEventListener("click",applyCardCycle);$("fillCardPool").addEventListener("click",fillCardPool);$("clearCards").addEventListener("click",()=>clearCards());
+  $("selectAllCards").addEventListener("click",()=>document.querySelectorAll("#cardChoices input").forEach(input=>{input.checked=true;}));$("clearCardSelection").addEventListener("click",()=>document.querySelectorAll("#cardChoices input").forEach(input=>{input.checked=false;}));
+  $("fillItems").addEventListener("click",fillItems);$("applyItemDetails").addEventListener("click",applyItemDetails);$("clearItems").addEventListener("click",clearItems);
+  $("applyPlayerState").addEventListener("click",()=>applyPlayerState(true));$("applyPossession").addEventListener("click",applyPossession);$("setSafePosition").addEventListener("click",safePosition);$("locateProperty").addEventListener("click",locateProperty);$("clearBadState").addEventListener("click",clearBadState);$("clearPossession").addEventListener("click",clearPossession);$("clearRoadEvents").addEventListener("click",clearRoadEvents);$("setCar").addEventListener("click",setCar);$("setHumanControl").addEventListener("click",setHumanControl);$("setComputersControl").addEventListener("click",setComputersControl);
+  $("applyGlobalState").addEventListener("click",()=>applyGlobalState(true));$("priceIndexOne").addEventListener("click",()=>{$("priceIndex").value=1;applyGlobalState(true);});$("estimatePriceIndex").addEventListener("click",()=>showPriceSummary("当前"));$("capHumanLiquidAssets").addEventListener("click",capHumanLiquidAssets);$("capHumanStockAssets").addEventListener("click",capHumanStockAssets);$("priceFriendlyMode").addEventListener("click",()=>applyPriceMode(false));$("targetPriceIndexMode").addEventListener("click",()=>applyPriceMode(true));
+  $("applyStockTables").addEventListener("click",()=>applyStockTables(true));$("buyAllStocks").addEventListener("click",buyAllStocks);$("controlAllStocks").addEventListener("click",controlAllStocks);$("controlMapStocks").addEventListener("click",controlMapStocks);$("setHumanStocks").addEventListener("click",setHumanStocks);$("clearComputerStocks").addEventListener("click",clearComputerStocks);$("setStockPrices").addEventListener("click",setStockPrices);$("batchStockMarket").addEventListener("click",batchStockMarket);$("syncCompanyRights").addEventListener("click",repairStockAndCompanyRights);
+  $("ownAllLand").addEventListener("click",()=>setAllLandOwner(clamp($("landPlayer").value,1,4)));$("setAllLandOwner").addEventListener("click",()=>setAllLandOwner(clamp($("landOwnerTarget").value,0,4)));$("clearComputerLand").addEventListener("click",clearComputerLand);$("batchLandPrices").addEventListener("click",batchLandPrices);$("upgradeLand").addEventListener("click",()=>updateLandLevels("up"));$("downgradeLand").addEventListener("click",()=>updateLandLevels("down"));$("maxLand").addEventListener("click",()=>updateLandLevels("max"));$("clearPlayerLand").addEventListener("click",clearSelectedPlayerLand);$("applyLandTable").addEventListener("click",()=>applyLandTable(true));$("controlMapCompanies").addEventListener("click",controlMapCompanies);$("batchCompanyToll").addEventListener("click",()=>batchCompanyToll(false));$("zeroCompanyToll").addEventListener("click",()=>batchCompanyToll(true));$("applyCompanyTable").addEventListener("click",()=>applyCompanyTable(true));
+  $("saveSettings").addEventListener("click",saveSettings);$("loadSettings").addEventListener("click",()=>loadSettings(false));
+  window.addEventListener("beforeunload",event=>{if(dirty){event.preventDefault();event.returnValue="";}});
+
+  initControls();loadSettings(true);setEnabled(false);
+})();
+</script>
+</body>
+</html>
